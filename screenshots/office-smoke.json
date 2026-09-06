@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/office",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Breakroom Display v1.1",
+      "hasCanvas": false,
+      "bodyTextLen": 965,
+      "bodyTextHash": "d546ee9ec4014a5cdb72d1736e21991ae71bbdcdb4a9f46c2183f97ad47a979d",
+      "bodyTextPrefix": "NB NORTH BALTIMORE · V1.1 Breakroom Display Live Production Slid",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/office-smoke.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Breakroom Display v1.1",
+      "hasCanvas": false,
+      "bodyTextLen": 944,
+      "bodyTextHash": "3a362627581e2b5198c6a7741da99d0ff7e9e9ad4ca49dd0907e41ec4e6b2087",
+      "bodyTextPrefix": "NB NORTH BALTIMORE · V1.1 Breakroom Display Live Production Slid",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/office-smoke-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/office-smoke.json"
+}

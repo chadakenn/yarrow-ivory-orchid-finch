@@ -1,0 +1,31 @@
+{
+  "version": 3,
+  "framework": {
+    "name": "nitro",
+    "version": "3.0.260610-beta"
+  },
+  "overrides": {},
+  "routes": [
+    {
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable"
+      },
+      "src": "/assets/(.*)"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/api/mill-workspace.zip",
+      "dest": "/api/mill-workspace.zip"
+    },
+    {
+      "src": "/api/mill-workspace",
+      "dest": "/api/mill-workspace"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/__server"
+    }
+  ]
+}

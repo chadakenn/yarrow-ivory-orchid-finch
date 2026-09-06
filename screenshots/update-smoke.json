@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/update",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Breakroom Display v1.0",
+      "hasCanvas": false,
+      "bodyTextLen": 621,
+      "bodyTextHash": "588358b31fb0cca3fd05e35c1125778251780bba7af60271fad9d7a0cc57612c",
+      "bodyTextPrefix": "NORTH BALTIMORE MILL TV · V1.0 UPDATE THIS TV Do this from your ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/update-smoke.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Breakroom Display v1.0",
+      "hasCanvas": false,
+      "bodyTextLen": 621,
+      "bodyTextHash": "588358b31fb0cca3fd05e35c1125778251780bba7af60271fad9d7a0cc57612c",
+      "bodyTextPrefix": "NORTH BALTIMORE MILL TV · V1.0 UPDATE THIS TV Do this from your ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/update-smoke-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/update-smoke.json"
+}

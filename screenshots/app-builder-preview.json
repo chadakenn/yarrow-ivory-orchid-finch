@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Breakroom Display v1.0",
+      "hasCanvas": false,
+      "bodyTextLen": 838,
+      "bodyTextHash": "63e722c2173afe777e09328c62652445c29023ee3fe71fd8e16def94d8d91220",
+      "bodyTextPrefix": "MILL CONQUEST BOARD PLAN. PRODUCE. DELIVER. CONQUER. PIG FEED. M",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Breakroom Display v1.0",
+      "hasCanvas": false,
+      "bodyTextLen": 838,
+      "bodyTextHash": "63e722c2173afe777e09328c62652445c29023ee3fe71fd8e16def94d8d91220",
+      "bodyTextPrefix": "MILL CONQUEST BOARD PLAN. PRODUCE. DELIVER. CONQUER. PIG FEED. M",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}

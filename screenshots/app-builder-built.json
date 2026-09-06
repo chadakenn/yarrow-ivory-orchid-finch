@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Breakroom Display",
+      "hasCanvas": false,
+      "bodyTextLen": 560,
+      "bodyTextHash": "13e537c3d3ed42758b355e399c1835b30d0fd4fee96c1204d8cce690ac99696f",
+      "bodyTextPrefix": "PIG FEED · MULTI-MILL PRODUCTION FEED MILL PRODUCTION CHAMPIONSH",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Breakroom Display",
+      "hasCanvas": false,
+      "bodyTextLen": 560,
+      "bodyTextHash": "13e537c3d3ed42758b355e399c1835b30d0fd4fee96c1204d8cce690ac99696f",
+      "bodyTextPrefix": "PIG FEED · MULTI-MILL PRODUCTION FEED MILL PRODUCTION CHAMPIONSH",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

@@ -1,0 +1,1 @@
+import{t as e}from"./ControlRoom-DG4M_Shv.js";import{H as t}from"./index-gDjchAZb.js";var n=t();function r(){return(0,n.jsx)(e,{room:`admin`})}export{r as component};
