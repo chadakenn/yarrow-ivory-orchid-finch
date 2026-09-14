@@ -5,7 +5,6 @@ import {
   capitalOf,
   captureLabelPoint,
   continentBounds,
-  countBoard,
   islandPath,
   LAND_SRC,
   makeArrowPath,
@@ -177,7 +176,6 @@ export function ConquestMap({ territories, transfers, owners, mode, live }: Prop
     [territories],
   );
   const geom = useMemo(() => territoryGeometry(), []);
-  const held = useMemo(() => countBoard(owners), [owners]);
   const captures = useMemo(() => visibleCaptures(transfers), [transfers]);
   const takenIds = useMemo(() => new Set(captures.map((cap) => cap.territoryId)), [captures]);
   const continentBoxes = useMemo(
@@ -244,7 +242,7 @@ export function ConquestMap({ territories, transfers, owners, mode, live }: Prop
             <path d={view.path} fill={`url(#cq-${tone.token})`} />
             <g clipPath={`url(#cq-prov-${view.id})`}>
               <image
-                href={LAND_SRC[owner]}
+                href={LAND_SRC[view.home]}
                 x={minX - bw * 0.04}
                 y={minY - bh * 0.04}
                 width={bw * 1.08}
@@ -257,7 +255,7 @@ export function ConquestMap({ territories, transfers, owners, mode, live }: Prop
                 width={bw + 24}
                 height={bh + 24}
                 fill={tone.dark}
-                opacity={owner === view.home ? 0.22 : 0.52}
+                opacity={owner === view.home ? 0.22 : 0.38}
               />
               <rect
                 x={minX - 12}
@@ -265,7 +263,7 @@ export function ConquestMap({ territories, transfers, owners, mode, live }: Prop
                 width={bw + 24}
                 height={bh + 24}
                 fill={tone.stroke}
-                opacity={owner === view.home ? 0.14 : 0.42}
+                opacity={owner === view.home ? 0.14 : 0.28}
                 style={{ mixBlendMode: "color" }}
               />
             </g>
@@ -316,7 +314,7 @@ export function ConquestMap({ territories, transfers, owners, mode, live }: Prop
         const leader = mode === "season" ? Boolean(row?.seasonLeader) : Boolean(row?.leader);
         const tons = mode === "season" ? (row?.ytdTonsDisplay ?? "0") : (row?.weeklyTonsDisplay ?? "0");
         const tonsLabel = mode === "season" ? "YTD TONS" : "WEEKLY TONS";
-        const count = held[name] ?? 0;
+        const count = row?.territories ?? 0;
         const compact = count <= 2;
         const nameY = isOurs && !compact ? view.label[1] - 8 : view.label[1];
         const statY = isOurs && !compact ? view.label[1] + 42 : view.label[1] + (compact ? 22 : 30);

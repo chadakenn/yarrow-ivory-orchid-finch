@@ -1,0 +1,16 @@
+[Unit]
+Description=Bakery Feeds mill update watchdog
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/breakroom-watchdog
+Environment=MILL_APP=/opt/breakroom-grok
+Environment=MILL_DATA=/opt/breakroom-data
+ExecStart=/usr/bin/python3 /opt/breakroom-watchdog/mill-watchdog.py loop
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

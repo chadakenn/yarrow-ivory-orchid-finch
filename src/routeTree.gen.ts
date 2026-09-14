@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ControlRouteImport } from './routes/control'
 import { Route as OfficeRouteImport } from './routes/office'
-import { Route as UpdateRouteImport } from './routes/update'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,25 +34,18 @@ const OfficeRoute = OfficeRouteImport.update({
   path: '/office',
   getParentRoute: () => rootRouteImport,
 } as any)
-const UpdateRoute = UpdateRouteImport.update({
-  id: '/update',
-  path: '/update',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/control': typeof ControlRoute
   '/office': typeof OfficeRoute
-  '/update': typeof UpdateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/control': typeof ControlRoute
   '/office': typeof OfficeRoute
-  '/update': typeof UpdateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -61,14 +53,13 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/control': typeof ControlRoute
   '/office': typeof OfficeRoute
-  '/update': typeof UpdateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/control' | '/office' | '/update'
+  fullPaths: '/' | '/admin' | '/control' | '/office'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/control' | '/office' | '/update'
-  id: '__root__' | '/' | '/admin' | '/control' | '/office' | '/update'
+  to: '/' | '/admin' | '/control' | '/office'
+  id: '__root__' | '/' | '/admin' | '/control' | '/office'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,7 +67,6 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   ControlRoute: typeof ControlRoute
   OfficeRoute: typeof OfficeRoute
-  UpdateRoute: typeof UpdateRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -109,13 +99,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/update': {
-      id: '/update'
-      path: '/update'
-      fullPath: '/update'
-      preLoaderRoute: typeof UpdateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -124,7 +107,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   ControlRoute: ControlRoute,
   OfficeRoute: OfficeRoute,
-  UpdateRoute: UpdateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

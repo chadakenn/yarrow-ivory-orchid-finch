@@ -1,35 +1,13 @@
 import { Award, Cake, Flag, Heart, Shield } from "lucide-react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { ConquestMap } from "@/components/display/ConquestMap";
-import { PigMark, TargetMark, TrophyMark } from "@/components/display/Heraldry";
-import { BakeryLogo } from "@/components/ui/bakery-logo";
-import { countBoard, type BoardOwner } from "@/lib/map-engine";
+import { MillCrest, PigMark, TargetMark, TrophyMark } from "@/components/display/Heraldry";
+import type { BoardOwner } from "@/lib/map-engine";
 import { MILL_HEX } from "@/lib/mills";
 import type { CaptureTransfer, PersonEntry, PlantBoard, PlantName, RankedPlant, TerritoryRow } from "@/lib/types";
 import { PLANT_NAMES } from "@/lib/types";
 import { initials } from "@/lib/utils";
-import { personDefaultMessage, personKicker } from "@/lib/people";
 
 type WeeklyGraph = ReturnType<typeof import("@/lib/production").weeklyGraph>;
-
-function BoardBrand({ kicker, children }: { kicker: string; children: React.ReactNode }) {
-  return (
-    <div className="board-brand">
-      <div className="board-ident">
-        <BakeryLogo tone="brass" size="sm" />
-        <span>{kicker}</span>
-      </div>
-      {children}
-    </div>
-  );
-}
 
 export function DeckSlide({
   src,
@@ -68,13 +46,12 @@ export function ProductionSlide({
   return (
     <div className="production-board">
       <div className="production-head">
-        <BoardBrand kicker="PIG FEED · MULTI-MILL PRODUCTION">
-          <div className="production-title">{title}</div>
-          <div className="production-sub">
-            <strong>{metric}</strong>
-            <span>· {period}</span>
-          </div>
-        </BoardBrand>
+        <div className="production-eyebrow">PIG FEED · MULTI-MILL PRODUCTION</div>
+        <div className="production-title">{title}</div>
+        <div className="production-sub">
+          <strong>{metric}</strong>
+          <span>· {period}</span>
+        </div>
       </div>
       {plants.map((plant) => (
         <div key={plant.name} className={`production-row rank-${plant.rank}${plant.our ? " our" : ""}`}>
@@ -113,24 +90,18 @@ export function ProductionSlide({
 }
 
 export function TrendsSlide({ graph }: { graph: WeeklyGraph }) {
-  const chartData = graph.weeks.map((week) => ({
-    label: week.label,
-    ...week.values,
-  }));
-  const lastIndex = Math.max(0, chartData.length - 1);
-
+  const first = graph.weeks[0]?.label;
+  const last = graph.weeks[graph.weeks.length - 1]?.label;
   return (
     <div className="trends-board">
       <div className="production-head">
-        <BoardBrand kicker="PIG FEED · SATURDAY FINALS">
-          <div className="production-title">Weekly Tonnage Trends</div>
-          <div className="production-sub">
-            <strong>Last {graph.count} closed weeks</strong>
-            <span>· Week ending {graph.latestLabel || "—"}{graph.previousLabel ? ` · vs ${graph.previousLabel}` : ""}</span>
-          </div>
-        </BoardBrand>
+        <div className="production-eyebrow">PIG FEED · SATURDAY FINALS</div>
+        <div className="production-title">Weekly Tonnage Trends</div>
+        <div className="production-sub">
+          <strong>{graph.count} locked Saturdays</strong>
+          <span>· {first ? `${first} – ` : ""}{last || graph.latestLabel || "—"}</span>
+        </div>
       </div>
-
       <div className="trends-layout">
         <div className="trends-chart-card">
           <div className="trends-legend">
@@ -143,57 +114,9 @@ export function TrendsSlide({ graph }: { graph: WeeklyGraph }) {
             ))}
           </div>
           <div className="trends-chart">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 16, left: 4, bottom: 0 }}>
-                <CartesianGrid stroke="rgba(232,237,243,0.08)" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  stroke="#8b97a8"
-                  fontSize={13}
-                  tickLine={false}
-                  axisLine={false}
-                  interval={0}
-                  dy={4}
-                />
-                <YAxis
-                  stroke="#8b97a8"
-                  fontSize={13}
-                  tickLine={false}
-                  axisLine={false}
-                  width={54}
-                  tickFormatter={(value: number) => Math.round(value).toLocaleString("en-US")}
-                />
-                {PLANT_NAMES.map((name: PlantName) => (
-                  <Line
-                    key={name}
-                    type="monotone"
-                    dataKey={name}
-                    stroke={MILL_HEX[name].stroke}
-                    strokeWidth={name === "North Baltimore" ? 4 : 2.4}
-                    dot={(props) => {
-                      const { cx, cy, index } = props;
-                      if (index !== lastIndex || cx == null || cy == null) return <g key={`${name}-${index}`} />;
-                      return (
-                        <circle
-                          key={`${name}-last`}
-                          cx={cx}
-                          cy={cy}
-                          r={name === "North Baltimore" ? 7 : 5.5}
-                          fill={MILL_HEX[name].stroke}
-                          stroke="#0a1018"
-                          strokeWidth={2}
-                        />
-                      );
-                    }}
-                    activeDot={false}
-                    isAnimationActive={false}
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
+            <MillTrendChart graph={graph} />
           </div>
         </div>
-
         <div className="trends-side">
           {graph.mills.map((mill) => (
             <div key={mill.name} className={`trends-mill${mill.our ? " our" : ""}`}>
@@ -211,6 +134,71 @@ export function TrendsSlide({ graph }: { graph: WeeklyGraph }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function MillTrendChart({ graph }: { graph: WeeklyGraph }) {
+  const weeks = graph.weeks;
+  if (!weeks.length) return <div className="trends-empty">No locked Saturdays yet.</div>;
+  const W = 1100;
+  const H = 280;
+  const L = 58;
+  const R = 20;
+  const T = 16;
+  const B = 36;
+  const innerW = W - L - R;
+  const innerH = H - T - B;
+  const peak = Math.max(1000, ...weeks.flatMap((week) => PLANT_NAMES.map((name) => week.values[name] ?? 0)));
+  const max = Math.ceil(peak / 500) * 500;
+  const last = weeks.length - 1;
+  const xAt = (i: number) => L + (weeks.length <= 1 ? innerW / 2 : (i / (weeks.length - 1)) * innerW);
+  const yAt = (value: number) => T + innerH * (1 - value / max);
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((part) => Math.round(max * part));
+  return (
+    <svg className="trends-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Weekly mill tons">
+      {ticks.map((tick) => (
+        <g key={tick}>
+          <line x1={L} x2={W - R} y1={yAt(tick)} y2={yAt(tick)} stroke="rgba(232,237,243,0.1)" />
+          <text x={L - 8} y={yAt(tick) + 4} textAnchor="end" fill="#8b97a8" fontSize="12">
+            {tick.toLocaleString("en-US")}
+          </text>
+        </g>
+      ))}
+      {weeks.map((week, index) =>
+        week.showMonth ? (
+          <text key={week.weekEnding} x={xAt(index)} y={H - 10} textAnchor="middle" fill="#8b97a8" fontSize="12">
+            {week.month}
+          </text>
+        ) : null,
+      )}
+      {PLANT_NAMES.map((name) => {
+        const d = weeks
+          .map((week, index) => `${index ? "L" : "M"}${xAt(index).toFixed(1)},${yAt(week.values[name] ?? 0).toFixed(1)}`)
+          .join(" ");
+        return (
+          <path
+            key={name}
+            d={d}
+            fill="none"
+            stroke={MILL_HEX[name].stroke}
+            strokeWidth={name === "North Baltimore" ? 3.6 : 2.2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        );
+      })}
+      {PLANT_NAMES.map((name) => (
+        <circle
+          key={`${name}-last`}
+          cx={xAt(last)}
+          cy={yAt(weeks[last].values[name] ?? 0)}
+          r={name === "North Baltimore" ? 6 : 4.5}
+          fill={MILL_HEX[name].stroke}
+          stroke="#0a1018"
+          strokeWidth="2"
+        />
+      ))}
+    </svg>
   );
 }
 
@@ -256,27 +244,21 @@ export function ConquestSlide({
 
   const weeklySorted = [...territories].sort((a, b) => a.weeklyRank - b.weeklyRank);
   const ytdSorted = [...territories].sort((a, b) => a.seasonRank - b.seasonRank);
-  const held = countBoard(owners);
-  const controlSorted = [...territories]
-    .map((row) => ({ ...row, territories: held[row.name] ?? 0 }))
-    .sort((a, b) => {
-      const t = b.territories - a.territories;
-      if (t) return t;
-      return a.name.localeCompare(b.name);
-    });
+  const controlSorted = [...territories].sort((a, b) => {
+    const t = b.territories - a.territories;
+    if (t) return t;
+    return a.name.localeCompare(b.name);
+  });
 
   return (
     <div className="conquest-board">
       <div className="conquest-head">
         <div className="conquest-brand">
-          <div className="board-ident">
-            <BakeryLogo tone="brass" size="sm" />
-            <span>BAKERY FEEDS · PIG FEED</span>
-          </div>
+          <MillCrest className="conquest-crest" />
           <div>
             <div className="conquest-title">MILL CONQUEST BOARD</div>
             <div className="conquest-subtitle">PLAN. PRODUCE. DELIVER. CONQUER.</div>
-            <div className="conquest-kicker">MULTI-MILL PRODUCTION. BUILT ON TEAMWORK.</div>
+            <div className="conquest-kicker">PIG FEED. MULTI-MILL PRODUCTION. BUILT ON TEAMWORK.</div>
           </div>
         </div>
         <div className="conquest-week-card">
@@ -393,12 +375,11 @@ export function RecordsSlide({
   return (
     <div className="records-board">
       <div className="records-head">
-        <BoardBrand kicker="PIG FEED · PRODUCTION RECORD BOOK">
-          <div className="records-title">PRODUCTION RECORDS & STREAKS</div>
-          <div className="records-sub">
-            {records.completedWeeks} COMPLETED WEEK{records.completedWeeks === 1 ? "" : "S"} · FINAL SATURDAY TOTALS
-          </div>
-        </BoardBrand>
+        <div className="records-eyebrow">PIG FEED · PRODUCTION RECORD BOOK</div>
+        <div className="records-title">PRODUCTION RECORDS & STREAKS</div>
+        <div className="records-sub">
+          {records.completedWeeks} COMPLETED WEEK{records.completedWeeks === 1 ? "" : "S"} · FINAL SATURDAY TOTALS
+        </div>
       </div>
       <div className="records-highlights">
         <div className="records-highlight primary">
@@ -422,17 +403,14 @@ export function RecordsSlide({
         </div>
       </div>
       <div className="records-table-head">
-        {["", "MILL", "WINS", "CURRENT STREAK", "LONGEST STREAK", "PERSONAL BEST"].map((label) => (
-          <div key={label || "place"} className="records-cell">
+        {["MILL", "WINS", "CURRENT STREAK", "LONGEST STREAK", "PERSONAL BEST"].map((label) => (
+          <div key={label} className="records-cell">
             {label}
           </div>
         ))}
       </div>
       {records.rows.map((row) => (
-        <div key={row.name} className={`records-table-row rank-${row.rank}${row.our ? " our" : ""}`}>
-          <div className="records-cell">
-            <div className="records-place">{row.rank}</div>
-          </div>
+        <div key={row.name} className={`records-table-row${row.our ? " our" : ""}`}>
           <div className="records-cell">
             <div className="records-name">
               {row.name}
@@ -480,10 +458,11 @@ export function PlantBoardSlide({ board, updatedLabel }: { board: PlantBoard; up
   return (
     <div className="plant-board-slide">
       <div className="plant-board-head">
-        <BoardBrand kicker="North Baltimore · Daily Operations">
+        <div>
+          <div className="plant-board-kicker">North Baltimore · Daily Operations</div>
           <div className="plant-board-title">{board.title}</div>
           <div className="plant-board-sub">{board.subtitle}</div>
-        </BoardBrand>
+        </div>
         {updatedLabel ? <div className="plant-board-stamp">UPDATED {updatedLabel}</div> : null}
       </div>
       <div className="plant-board-grid">
@@ -505,29 +484,28 @@ export function PlantBoardSlide({ board, updatedLabel }: { board: PlantBoard; up
 }
 
 export function PeopleSlide({ person }: { person: PersonEntry }) {
-  const kicker = personKicker(person);
+  const birthday = person.kind === "birthday";
+  const anniversary = person.kind === "anniversary";
+  const kicker = birthday ? "Happy birthday" : anniversary ? "Work anniversary" : "Employee recognition";
+  const Icon = birthday ? Cake : anniversary ? Heart : Award;
   return (
     <div className={`person-slide ${person.kind}`}>
       <div className="person-visual">
         {person.photo ? (
-          <img src={person.photo} alt="" className="person-photo" />
+          <img src={person.photo} alt={person.name} className="person-photo" />
         ) : (
           <div className="person-fallback">{initials(person.name)}</div>
         )}
       </div>
       <div className="person-copy">
         <div className="person-kicker">
-          {person.kind === "birthday" ? (
-            <Cake size={18} strokeWidth={2} />
-          ) : person.kind === "anniversary" ? (
-            <Heart size={18} strokeWidth={2} />
-          ) : (
-            <Award size={18} strokeWidth={2} />
-          )}
-          {kicker}
+          <Icon size={18} strokeWidth={2} /> {kicker}
         </div>
         <div className="person-name">{person.name}</div>
-        <div className="person-message">{person.message || personDefaultMessage(person)}</div>
+        <div className="person-message">
+          {person.message ||
+            (birthday ? "Wishing you a great birthday!" : anniversary ? "Thank you for another year." : "Thank you for your hard work!")}
+        </div>
       </div>
     </div>
   );

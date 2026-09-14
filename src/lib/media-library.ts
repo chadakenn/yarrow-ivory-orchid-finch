@@ -1,16 +1,9 @@
 import { useEffect, useState } from "react";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import PptxRenderer from "pptx-browser";
 import { listRemoteDecks, removeRemoteDeck, saveRemoteDeck, toggleRemoteDeck } from "@/lib/kiosk";
-
-GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const DB_NAME = "breakroom-media-v1";
 const STORE = "decks";
 const CHANNEL = "breakroom-media";
-const JPEG_QUALITY = 0.86;
-const RENDER_WIDTH = 1600;
 
 export type DeckKind = "pptx" | "pdf" | "image";
 
@@ -22,6 +15,22 @@ export type Deck = {
   createdAt: number;
   slides: Array<{ src: string }>;
 };
+
+function sameDecks(a: Deck[], b: Deck[]) {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((deck, i) => {
+    const other = b[i];
+    return (
+      deck.id === other.id &&
+      deck.name === other.name &&
+      deck.enabled === other.enabled &&
+      deck.createdAt === other.createdAt &&
+      deck.slides.length === other.slides.length &&
+      deck.slides.every((slide, j) => slide.src === other.slides[j]?.src)
+    );
+  });
+}
 
 function notify() {
   try {
@@ -47,24 +56,23 @@ function openDb(): Promise<IDBDatabase> {
 export async function listDecks(): Promise<Deck[]> {
   try {
     const remote = await listRemoteDecks();
-    if (remote.length) {
-      for (const deck of remote) await cacheDeck(deck);
-      return remote;
-    }
+    await replaceLocal(remote);
+    return remote;
   } catch {
-    /* fall through to the local library */
+    return listLocalDecks();
   }
-  const local = await listLocalDecks();
-  if (local.length) {
-    for (const deck of local) {
-      try {
-        await saveRemoteDeck({ data: deck });
-      } catch {
-        break;
-      }
-    }
-  }
-  return local;
+}
+
+async function replaceLocal(decks: Deck[]) {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    const store = tx.objectStore(STORE);
+    store.clear();
+    for (const deck of decks) store.put(deck);
+  });
 }
 
 async function listLocalDecks(): Promise<Deck[]> {
@@ -121,29 +129,30 @@ export async function removeDeck(id: string) {
   try {
     await removeRemoteDeck({ data: { id } });
   } catch {
-    /* ignore */
+    try {
+      await fetch(`/api/mill-media/${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch {
+      /* files may already be gone */
+    }
   }
   notify();
 }
 
-export async function clearDecks(mode: "off" | "all") {
-  const decks = await listDecks();
-  const targets = mode === "off" ? decks.filter((deck) => !deck.enabled) : decks;
-  for (const deck of targets) await removeDeck(deck.id);
-  if (mode === "all") {
-    const db = await openDb();
-    await new Promise<void>((resolve, reject) => {
-      const req = db.transaction(STORE, "readwrite").objectStore(STORE).clear();
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-    notify();
+export async function moveDeck(id: string, dir: -1 | 1) {
+  const decks = await listLocalDecks();
+  const index = decks.findIndex((deck) => deck.id === id);
+  const swap = index + dir;
+  if (index < 0 || swap < 0 || swap >= decks.length) return;
+  const a = decks[index];
+  const b = decks[swap];
+  let aTime = a.createdAt;
+  let bTime = b.createdAt;
+  if (aTime === bTime) {
+    aTime = Date.now();
+    bTime = aTime + dir * 10;
   }
-  return targets.length;
-}
-
-export function deckBytes(deck: Deck) {
-  return deck.slides.reduce((sum, slide) => sum + (slide.src?.length ?? 0), 0);
+  await putDeck({ ...a, createdAt: bTime });
+  await putDeck({ ...b, createdAt: aTime });
 }
 
 function extOf(name: string) {
@@ -162,136 +171,67 @@ function kindOf(file: File): DeckKind | null {
   return null;
 }
 
-function canvasToJpeg(canvas: HTMLCanvasElement) {
-  return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
-}
-
-async function renderPptx(file: File, onProgress?: (label: string) => void) {
-  const renderer = new PptxRenderer();
-  await renderer.load(file, (_progress, message) => onProgress?.(message || "Reading PowerPoint…"));
-  if (!renderer.slideCount) throw new Error("No slides found in that PowerPoint.");
-  const slides: Array<{ src: string }> = [];
-  for (let i = 0; i < renderer.slideCount; i++) {
-    onProgress?.(`Rendering slide ${i + 1} of ${renderer.slideCount}…`);
-    const canvas = document.createElement("canvas");
-    await renderer.renderSlide(i, canvas, RENDER_WIDTH);
-    slides.push({ src: canvasToJpeg(canvas) });
-  }
-  renderer.destroy();
-  return slides;
-}
-
-async function renderPdf(file: File, onProgress?: (label: string) => void) {
-  const data = await file.arrayBuffer();
-  const pdf = await getDocument({ data }).promise;
-  const slides: Array<{ src: string }> = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    onProgress?.(`Rendering page ${i} of ${pdf.numPages}…`);
-    const page = await pdf.getPage(i);
-    const base = page.getViewport({ scale: 1 });
-    const viewport = page.getViewport({ scale: RENDER_WIDTH / base.width });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Could not draw that PDF page.");
-    await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-    slides.push({ src: canvasToJpeg(canvas) });
-  }
-  return slides;
-}
-
-function readImage(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
+function shrinkImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) return Promise.resolve(file);
+  return new Promise((resolve) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => {
+      const scale = Math.min(1920 / image.width, 1080 / image.height, 1);
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d")?.drawImage(image, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          URL.revokeObjectURL(url);
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        0.85,
+      );
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    image.src = url;
   });
 }
 
 export async function importFiles(files: File[], onProgress?: (label: string) => void) {
   const imported: Deck[] = [];
-  const images: File[] = [];
-  const docs: File[] = [];
   for (const file of files) {
     const kind = kindOf(file);
     if (!kind) throw new Error(`${file.name} is not a PowerPoint, PDF, or image.`);
-    if (kind === "pptx" && extOf(file.name) === "ppt") {
-      throw new Error("Old .ppt files need to be saved as .pptx or PDF first.");
+    onProgress?.(`Sending ${file.name} to the mill…`);
+    const payload = new FormData();
+    payload.append("file", kind === "image" ? await shrinkImage(file) : file, file.name);
+    const res = await fetch("/api/mill-media", { method: "POST", body: payload });
+    const body = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      message?: string;
+      deck?: Deck;
+    };
+    if (!res.ok || body.ok === false || !body.deck) {
+      throw new Error(body.message || `Could not import ${file.name}.`);
     }
-    if (kind === "image") images.push(file);
-    else docs.push(file);
-  }
-
-  for (const file of docs) {
-    const kind = kindOf(file) as "pptx" | "pdf";
-    onProgress?.(`Opening ${file.name}…`);
-    const slides = kind === "pptx" ? await renderPptx(file, onProgress) : await renderPdf(file, onProgress);
-    if (!slides.length) throw new Error(`${file.name} had no slides to show.`);
-    onProgress?.(`Sending ${file.name} to the TV…`);
-    imported.push(await saveNewDeck(file.name, kind, slides, Date.now() + imported.length, onProgress));
-  }
-
-  if (images.length) {
-    const slides: Array<{ src: string }> = [];
-    for (const [index, file] of images.entries()) {
-      onProgress?.(images.length > 1 ? `Photo ${index + 1} of ${images.length}…` : `Opening ${file.name}…`);
-      slides.push({ src: await readImage(file) });
-    }
-    const name = images.length === 1 ? images[0].name : `${images.length} photos`;
-    imported.push(await saveNewDeck(name, "image", slides, Date.now() + imported.length, onProgress));
+    const deck: Deck = {
+      ...body.deck,
+      createdAt: Date.now(),
+      enabled: true,
+    };
+    onProgress?.(`Saving ${file.name}…`);
+    await putDeck(deck);
+    imported.push(deck);
   }
   return imported;
-}
-
-async function saveNewDeck(
-  name: string,
-  kind: DeckKind,
-  slides: Array<{ src: string }>,
-  createdAt: number,
-  onProgress?: (label: string) => void,
-) {
-  onProgress?.(`Sending ${name} to the TV…`);
-  const deck: Deck = {
-    id: `deck_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
-    name,
-    kind,
-    enabled: true,
-    createdAt,
-    slides,
-  };
-  await putDeck(deck);
-  return deck;
-}
-
-export async function moveDeck(id: string, dir: -1 | 1) {
-  const decks = await listLocalDecks();
-  const index = decks.findIndex((deck) => deck.id === id);
-  const swap = index + dir;
-  if (index < 0 || swap < 0 || swap >= decks.length) return;
-  const a = decks[index];
-  const b = decks[swap];
-  const stamp = a.createdAt;
-  a.createdAt = b.createdAt === stamp ? stamp + dir : b.createdAt;
-  b.createdAt = stamp;
-  await putDeck(a);
-  await putDeck(b);
-}
-
-function sameDecks(a: Deck[], b: Deck[]) {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  return a.every((deck, index) => {
-    const next = b[index];
-    return (
-      next &&
-      deck.id === next.id &&
-      deck.enabled === next.enabled &&
-      deck.slides.length === next.slides.length &&
-      deck.slides[0]?.src === next.slides[0]?.src
-    );
-  });
 }
 
 export function useMediaLibrary() {

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Pause, Play, Settings2, SkipBack, SkipForward } from "lucide-react";
-import { APP_BUILD, applyAppUpdate, remoteAppBuild } from "@/lib/app-update";
-import { APP_VERSION, DEVELOPER } from "@/lib/brand";
 import { ConquestSlide, DeckSlide, PeopleSlide, PlantBoardSlide, ProductionSlide, RecordsSlide, TrendsSlide } from "@/components/display/slides";
 import { useMediaLibrary } from "@/lib/media-library";
 import { buildSlides } from "@/lib/slides";
 import { useDisplayStore } from "@/lib/store";
+import { buildTicker } from "@/lib/ticker";
+import { APP_VERSION, DEVELOPER } from "@/lib/brand";
+import { millNow, loadMillClock } from "@/lib/mill-clock";
 import { cn } from "@/lib/utils";
 
 function ClockOverlay({
@@ -18,8 +19,9 @@ function ClockOverlay({
 }) {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
-    setNow(new Date());
-    const id = window.setInterval(() => setNow(new Date()), 1000);
+    void loadMillClock();
+    setNow(millNow());
+    const id = window.setInterval(() => setNow(millNow()), 1000);
     return () => window.clearInterval(id);
   }, []);
   if (!enabled || !now) return null;
@@ -32,7 +34,7 @@ function ClockOverlay({
         {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
       </div>
       <div className="clock-credit">
-        v{APP_VERSION} · powered by {DEVELOPER}
+        v{APP_VERSION} · {DEVELOPER}
       </div>
     </div>
   );
@@ -43,9 +45,14 @@ function Ticker({ message, speed, hidden }: { message: string; speed: "slow" | "
   const duration = speed === "slow" ? 42 : speed === "fast" ? 18 : 28;
   return (
     <div className="ticker-overlay" aria-hidden="true">
-      <div className="ticker-track" style={{ animationDuration: `${duration}s` }}>
-        <span>{message}</span>
-        <span>{message}</span>
+      <span className="bakery-ticker">
+        <img src="/bakery-feeds.svg" alt="" />
+      </span>
+      <div className="ticker-viewport">
+        <div className="ticker-track" style={{ animationDuration: `${duration}s` }}>
+          <span>{message}</span>
+          <span>{message}</span>
+        </div>
       </div>
     </div>
   );
@@ -57,40 +64,6 @@ const ANNOUNCE_COPY = {
   urgent: { label: "Urgent", tone: "urgent" },
   celebration: { label: "Celebration", tone: "celebration" },
 } as const;
-
-function TvUpdater() {
-  const [status, setStatus] = useState<"idle" | "ready" | "updating">("idle");
-  const started = useRef(false);
-
-  useEffect(() => {
-    if (APP_BUILD === "dev") return;
-    let alive = true;
-    const tick = async () => {
-      const remote = await remoteAppBuild();
-      if (!alive || !remote || remote === "dev" || remote === APP_BUILD) return;
-      setStatus("ready");
-      if (started.current) return;
-      started.current = true;
-      window.setTimeout(() => {
-        setStatus("updating");
-        void applyAppUpdate("/");
-      }, 4000);
-    };
-    void tick();
-    const id = window.setInterval(() => void tick(), 120000);
-    return () => {
-      alive = false;
-      window.clearInterval(id);
-    };
-  }, []);
-
-  if (status === "idle") return null;
-  return (
-    <div className="tv-update-banner">
-      {status === "updating" ? "Loading the new app…" : "New app found. This TV will update."}
-    </div>
-  );
-}
 
 export function TvDisplay() {
   const production = useDisplayStore((s) => s.production);
@@ -110,30 +83,28 @@ export function TvDisplay() {
   const [paused, setPaused] = useState(false);
   const [chrome, setChrome] = useState(true);
   const hideTimer = useRef<number | null>(null);
+  const boot = useRef(Date.now());
+
+  useEffect(() => {
+    void loadMillClock();
+  }, []);
+
+  useEffect(() => {
+    if (settings.reloadAt && settings.reloadAt > boot.current) {
+      window.location.reload();
+    }
+  }, [settings.reloadAt]);
 
   useEffect(() => {
     if (index >= slides.length) setIndex(0);
   }, [index, slides.length]);
 
   const slide = slides[index] ?? slides[0];
+  const liveAnnouncement = announcement && announcement.expiresAt > millNow().getTime() ? announcement : null;
   const slideId = slide?.id ?? "";
-  const holdMs = Math.max(2, Number(slide?.duration) || 12) * 1000;
-  const liveAnnouncement = announcement && announcement.expiresAt > Date.now() ? announcement : null;
-
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).has("boot")) {
-      window.history.replaceState({}, "", "/");
-    }
-  }, []);
-
-  useEffect(() => {
-    const stamp = Number(settings.reloadAt || 0);
-    if (!stamp) return;
-    const key = "nb-reload-at";
-    const prev = Number(sessionStorage.getItem(key) || "0");
-    sessionStorage.setItem(key, String(stamp));
-    if (prev && stamp > prev) void applyAppUpdate("/");
-  }, [settings.reloadAt]);
+  const holdMs = Math.max(2, Number(slide?.duration) || 8) * 1000;
+  const countRef = useRef(slides.length);
+  countRef.current = slides.length;
 
   useEffect(() => {
     if (!liveAnnouncement && announcement) clearAnnouncement();
@@ -141,12 +112,14 @@ export function TvDisplay() {
 
   useEffect(() => {
     if (paused || liveAnnouncement || !slideId) return;
-    const total = slides.length;
     const id = window.setTimeout(() => {
-      setIndex((current) => (total ? (current + 1) % total : 0));
+      setIndex((current) => {
+        const n = countRef.current;
+        return n ? (current + 1) % n : 0;
+      });
     }, holdMs);
     return () => window.clearTimeout(id);
-  }, [index, paused, liveAnnouncement, slideId, holdMs, slides.length]);
+  }, [slideId, holdMs, paused, liveAnnouncement]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -174,17 +147,12 @@ export function TvDisplay() {
     };
   }, []);
 
+  const hideTicker = Boolean(liveAnnouncement);
+  const hideClock = Boolean(liveAnnouncement);
+
   return (
     <div className="tv-shell" onMouseMove={bumpChrome} onClick={bumpChrome}>
-      <TvUpdater />
-      <div
-        className={cn(
-          "tv-stage",
-          settings.clockEnabled && "has-clock",
-          settings.clockEnabled && `clock-${settings.clockPosition}`,
-          settings.ticker.enabled && "has-ticker",
-        )}
-      >
+      <div className={cn("tv-stage", settings.clockEnabled && "has-clock", settings.ticker.enabled !== false && "has-ticker")}>
         {liveAnnouncement ? (
           <div className={cn("announce-board", ANNOUNCE_COPY[liveAnnouncement.type].tone)}>
             <div className="announce-kicker">{ANNOUNCE_COPY[liveAnnouncement.type].label}</div>
@@ -233,18 +201,22 @@ export function TvDisplay() {
           <div className="tv-empty">Nothing is queued for the display.</div>
         )}
 
-        <ClockOverlay enabled={settings.clockEnabled} position={settings.clockPosition} />
-        {settings.ticker.enabled ? (
-          <Ticker message={settings.ticker.message} speed={settings.ticker.speed} hidden={false} />
+        <ClockOverlay
+          enabled={settings.clockEnabled && !hideClock}
+          position={settings.clockPosition}
+        />
+        {settings.ticker.enabled !== false ? (
+          <Ticker
+            message={buildTicker({ production, people }, settings, millNow())}
+            speed={settings.ticker.speed}
+            hidden={hideTicker}
+          />
         ) : null}
 
         <div className={cn("tv-chrome", chrome ? "on" : "")}>
           <Link to="/control" className="tv-control-link">
             <Settings2 size={16} />
             Control room
-          </Link>
-          <Link to="/update" className="tv-control-link">
-            Update TV
           </Link>
           <div className="tv-transport">
             <button type="button" onClick={() => setIndex((i) => (slides.length ? (i - 1 + slides.length) % slides.length : 0))} aria-label="Previous slide">

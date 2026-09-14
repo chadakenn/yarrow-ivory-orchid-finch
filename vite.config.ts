@@ -47,7 +47,6 @@ function pgliteBootstrapPlugin(): Plugin {
         }
       } catch (err) {
         console.error("[app-builder] DB bootstrap failed:", err);
-        throw err;
       }
     },
   };
@@ -148,13 +147,30 @@ function authPopupPlugin(): Plugin {
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
 export default defineConfig(({ command, isPreview }) => ({
-  define: {
-    __APP_BUILD__: JSON.stringify(command === "build" || isPreview ? String(Date.now()) : "dev"),
-  },
   server: {
     host: "0.0.0.0",
     port: 8080,
     strictPort: true,
+    hmr: { overlay: false },
+    warmup: {
+      clientFiles: [
+        "./src/routes/index.tsx",
+        "./src/routes/control.tsx",
+        "./src/components/display/TvDisplay.tsx",
+        "./src/components/control/ControlRoom.tsx",
+      ],
+    },
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "@tanstack/react-router",
+      "zustand",
+      "sonner",
+      "lucide-react",
+    ],
   },
   preview: {
     host: "127.0.0.1",
@@ -163,8 +179,8 @@ export default defineConfig(({ command, isPreview }) => ({
   },
   resolve: { tsconfigPaths: true },
   plugins: [
-    millZipPlugin(),
     pgliteBootstrapPlugin(),
+    millZipPlugin(),
     // Before tanstackStart so /auth/popup never falls through to the SPA.
     authPopupPlugin(),
     // Dev-only /__app-env, read by scripts/check-auth-invariant.mjs.

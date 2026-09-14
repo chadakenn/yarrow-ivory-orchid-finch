@@ -612,24 +612,15 @@ export function productionRecords(state: ProductionState) {
       our: name === OUR_PLANT,
       bestWeekDisplay: formatTons(stats[name].bestWeekTons),
     }))
-      .sort((a, b) => {
-        const wins = b.wins - a.wins;
-        if (wins) return wins;
-        const streak = b.currentStreak - a.currentStreak;
-        if (streak) return streak;
-        const longest = b.longestStreak - a.longestStreak;
-        if (longest) return longest;
-        const best = b.bestWeekTons - a.bestWeekTons;
-        if (best) return best;
-        return a.name.localeCompare(b.name);
-      })
+      .sort((a, b) => b.wins - a.wins || b.currentStreak - a.currentStreak || b.bestWeekTons - a.bestWeekTons || a.name.localeCompare(b.name))
       .map((row, index) => ({ ...row, rank: index + 1 })),
   };
 }
 
-export function weeklyGraph(state: ProductionState, limit = 12) {
+export function weeklyGraph(state: ProductionState, limit = 0) {
   const year = productionYear(state);
-  const weeks = historyWeeksChrono(state, year).slice(-limit);
+  const all = historyWeeksChrono(state, year);
+  const weeks = limit > 0 ? all.slice(-limit) : all;
   const latest = weeks[weeks.length - 1];
   const previous = weeks[weeks.length - 2];
   const latestRanked = latest ? rankedProduction(latest.plants) : [];
@@ -659,11 +650,17 @@ export function weeklyGraph(state: ProductionState, limit = 12) {
 
   return {
     plants: [...PLANT_NAMES],
-    weeks: weeks.map((week) => ({
-      label: formatWeekShort(week.weekEnding),
-      weekEnding: week.weekEnding,
-      values: Object.fromEntries(week.plants.map((plant) => [plant.name, plant.tons])) as Record<PlantName, number>,
-    })),
+    weeks: weeks.map((week, index) => {
+      const month = format(parseISO(week.weekEnding), "MMM");
+      const prev = weeks[index - 1] ? format(parseISO(weeks[index - 1].weekEnding), "MMM") : "";
+      return {
+        label: formatWeekShort(week.weekEnding),
+        month,
+        showMonth: index === 0 || month !== prev,
+        weekEnding: week.weekEnding,
+        values: Object.fromEntries(week.plants.map((plant) => [plant.name, plant.tons])) as Record<PlantName, number>,
+      };
+    }),
     count: weeks.length,
     latestLabel: latest ? formatWeekEnding(latest.weekEnding) : "",
     previousLabel: previous ? formatWeekShort(previous.weekEnding) : "",
@@ -698,39 +695,13 @@ export function closeWeek(state: ProductionState): ProductionState {
   };
 }
 
-export function editHistoryWeek(
-  state: ProductionState,
-  id: string,
-  plants: PlantTons[],
-): ProductionState {
-  const nextPlants = PLANT_NAMES.map((name) => ({
-    name,
-    tons: Math.max(0, plants.find((p) => p.name === name)?.tons ?? 0),
-  }));
-  const ranked = rankedProduction(nextPlants);
+export function editHistoryWeek(state: ProductionState, id: string, plants: PlantTons[]): ProductionState {
+  const ranked = rankedProduction(plants);
   const leaderTons = ranked[0]?.tons ?? 0;
   const winners = ranked.filter((row) => row.tons === leaderTons).map((row) => row.name);
   return {
     ...state,
     lastUpdated: Date.now(),
-    history: state.history.map((entry) =>
-      entry.id === id ? { ...entry, plants: nextPlants, winners } : entry,
-    ),
+    history: state.history.map((week) => (week.id === id ? { ...week, plants: plants.map((plant) => ({ ...plant })), winners } : week)),
   };
-}
-
-export function addHistoryWeek(state: ProductionState, weekEnding: string, plants: PlantTons[]): ProductionState {
-  const date = new Date(`${weekEnding}T12:00:00`);
-  if (Number.isNaN(date.getTime()) || format(date, "yyyy-MM-dd") !== weekEnding || date.getDay() !== 6 ||
-      weekEnding >= state.weekEnding || state.history.some((entry) => entry.weekEnding === weekEnding)) return state;
-  const nextPlants = PLANT_NAMES.map((name) => ({ name, tons: Math.max(0, plants.find((p) => p.name === name)?.tons ?? 0) }));
-  const leader = Math.max(...nextPlants.map((p) => p.tons));
-  if (leader <= 0 || nextPlants.some((p) => !Number.isFinite(p.tons))) return state;
-  const entry: HistoryWeek = {
-    id: `week_${weekEnding}`,
-    weekEnding,
-    plants: nextPlants,
-    winners: nextPlants.filter((p) => p.tons === leader).map((p) => p.name),
-  };
-  return { ...state, lastUpdated: Date.now(), history: [entry, ...state.history].sort((a, b) => b.weekEnding.localeCompare(a.weekEnding)) };
 }

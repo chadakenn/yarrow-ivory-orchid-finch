@@ -1,0 +1,16 @@
+[Unit]
+Description=Bakery Feeds mill TV
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/breakroom-grok
+Environment=MILL_APP=/opt/breakroom-grok
+Environment=MILL_DATA=/opt/breakroom-data
+ExecStart=/opt/breakroom-grok/scripts/mill-start.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

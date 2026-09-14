@@ -1,12 +1,17 @@
 import { format } from "date-fns";
 import {
   conquestContext,
+  formatWeekEnding,
+  lastClosedPair,
   productionRecords,
+  rankChangeTrends,
+  rankedProduction,
   weeklyGraph,
   ytdProduction,
 } from "@/lib/production";
-import { livePeople } from "@/lib/people";
 import type { Deck } from "@/lib/media-library";
+import { livePeople } from "@/lib/people";
+import { millNow } from "@/lib/mill-clock";
 import type { AppState, CaptureTransfer, PersonEntry, PlantBoard, RankedPlant, TerritoryRow } from "@/lib/types";
 import type { BoardOwner } from "@/lib/map-engine";
 
@@ -101,12 +106,26 @@ export function buildSlides(state: AppState, decks: Deck[] = []): Slide[] {
       });
     }
   }
+  const lastClosed = lastClosedPair(production);
+  const weekly = rankedProduction(production.plants, {}, rankChangeTrends(production.plants, lastClosed.current));
   const ytd = ytdProduction(production);
   const conquest = conquestContext(production);
   const records = productionRecords(production);
-  const graph = weeklyGraph(production, 12);
+  const graph = weeklyGraph(production);
 
-  if (settings.ytdEnabled !== false) {
+  if (settings.productionEnabled && production.plants.some((plant) => plant.tons > 0)) {
+    slides.push({
+      id: "prod-weekly",
+      kind: "production",
+      duration: d.productionWeekly,
+      title: "FEED MILL PRODUCTION CHAMPIONSHIP",
+      period: `Week ending ${formatWeekEnding(production.weekEnding)}`,
+      metric: "TONS RUN",
+      plants: weekly,
+    });
+  }
+
+  if (settings.productionEnabled !== false) {
     slides.push({
       id: "prod-ytd",
       kind: "production",
@@ -119,7 +138,7 @@ export function buildSlides(state: AppState, decks: Deck[] = []): Slide[] {
     });
   }
 
-  if (settings.trendsEnabled !== false && graph.weeks.length) {
+  if (settings.productionEnabled !== false && graph.weeks.length) {
     slides.push({
       id: "prod-trends",
       kind: "trends",
@@ -128,7 +147,7 @@ export function buildSlides(state: AppState, decks: Deck[] = []): Slide[] {
     });
   }
 
-  if (settings.recordsEnabled !== false) {
+  if (settings.recordsEnabled) {
     slides.push({
       id: "records",
       kind: "records",
@@ -137,7 +156,7 @@ export function buildSlides(state: AppState, decks: Deck[] = []): Slide[] {
     });
   }
 
-  if (settings.conquestEnabled !== false) {
+  if (settings.conquestEnabled) {
     const seasonRows = conquest.ytdRanked.map((row) => {
       const match = conquest.territories.find((t) => t.name === row.name)!;
       return {
@@ -194,8 +213,7 @@ export function buildSlides(state: AppState, decks: Deck[] = []): Slide[] {
   }
 
   if (settings.peopleEnabled) {
-    const visible = livePeople(people);
-    for (const person of visible) {
+    for (const person of livePeople(people, millNow())) {
       slides.push({
         id: `person-${person.id}`,
         kind: "person",

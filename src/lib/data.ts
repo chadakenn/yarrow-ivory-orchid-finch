@@ -74,7 +74,7 @@ export function buildReal2026History(): HistoryWeek[] {
 
 export const DEFAULT_PRODUCTION: ProductionState = {
   weekEnding: "2026-09-05",
-  lastUpdated: Date.parse("2026-09-05T12:00:00"),
+  lastUpdated: Date.parse("2026-09-04T14:30:00"),
   history: buildReal2026History(),
   plants: PLANT_NAMES.map((name) => ({ name, tons: 0 })),
 };
@@ -98,45 +98,45 @@ export const DEFAULT_PEOPLE: PersonEntry[] = [
     id: "p1",
     kind: "birthday",
     name: "Maria Alvarez",
-    date: "1988-09-05",
+    date: "2026-09-06",
     endDate: "",
     message: "Wishing you a great day from the whole North Baltimore crew.",
-    photo: "",
-    yearly: true,
     enabled: true,
+    yearly: true,
+    photo: "",
   },
   {
     id: "p2",
-    kind: "anniversary",
-    name: "Pat Reese",
-    date: "2014-09-05",
-    endDate: "",
-    message: "",
-    photo: "",
-    yearly: true,
+    kind: "recognition",
+    name: "Devon Hale",
+    date: "2026-09-01",
+    endDate: "2026-09-12",
+    message: "90 days without a recordable. That is how we run this mill.",
     enabled: true,
+    yearly: false,
+    photo: "",
   },
   {
     id: "p3",
-    kind: "shoutout",
+    kind: "recognition",
     name: "Shift B Packaging",
     date: "2026-08-29",
     endDate: "2026-09-12",
     message: "Record Saturday — 612 tons packed without a stop. Outstanding.",
-    photo: "",
-    yearly: false,
     enabled: true,
+    yearly: false,
+    photo: "",
   },
   {
     id: "p4",
     kind: "birthday",
     name: "James Whitaker",
-    date: "1991-09-12",
+    date: "2026-09-12",
     endDate: "",
     message: "Happy birthday from receiving, shipping, and the control room.",
-    photo: "",
-    yearly: true,
     enabled: true,
+    yearly: true,
+    photo: "",
   },
 ];
 
@@ -145,19 +145,18 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
   clockPosition: "top-right",
   ticker: {
     enabled: true,
+    auto: true,
     message:
       "NORTH BALTIMORE 50 TPH  ·  PLAN. PRODUCE. DELIVER. CONQUER.  ·  WEEK ENDING SATURDAY SEPTEMBER 5",
     speed: "normal",
   },
   conquestEnabled: true,
   conquestMode: "season",
-  productionEnabled: false,
-  championshipEnabled: false,
-  ytdEnabled: true,
-  trendsEnabled: true,
+  productionEnabled: true,
   recordsEnabled: true,
   peopleEnabled: true,
   decksEnabled: true,
+  reloadAt: null,
   durations: {
     productionWeekly: 14,
     productionYtd: 14,
@@ -168,7 +167,6 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
     conquest: 22,
     presentation: 10,
   },
-  reloadAt: 0,
 };
 
 export const MILL_COPY: Record<
@@ -180,23 +178,3 @@ export const MILL_COPY: Record<
   "North Baltimore": { short: "NB", region: "Our mill" },
   Albertville: { short: "ALB", region: "Tennessee Valley" },
 };
-
-export function normalizeSettings(raw?: Partial<DisplaySettings> | null): DisplaySettings {
-  const parsed = raw ?? {};
-  const prod = parsed.productionEnabled !== false;
-  const championshipEnabled = false;
-  return {
-    ...DEFAULT_SETTINGS,
-    ...parsed,
-    ticker: { ...DEFAULT_SETTINGS.ticker, ...parsed.ticker },
-    durations: { ...DEFAULT_SETTINGS.durations, ...parsed.durations },
-    championshipEnabled,
-    ytdEnabled: parsed.ytdEnabled ?? prod,
-    trendsEnabled: parsed.trendsEnabled ?? prod,
-    productionEnabled: championshipEnabled,
-    recordsEnabled: parsed.recordsEnabled !== false,
-    conquestEnabled: parsed.conquestEnabled !== false,
-    peopleEnabled: parsed.peopleEnabled !== false,
-    decksEnabled: parsed.decksEnabled !== false,
-  };
-}

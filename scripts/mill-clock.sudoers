@@ -1,0 +1,9 @@
+# Mill TV phone-to-Pi clock and reboot. Install as /etc/sudoers.d/mill-clock
+Defaults!/opt/breakroom-grok/scripts/mill-set-clock.sh !requiretty
+Defaults!/opt/breakroom-grok/scripts/mill-reboot.sh !requiretty
+ALL ALL=(root) NOPASSWD: /opt/breakroom-grok/scripts/mill-set-clock.sh
+ALL ALL=(root) NOPASSWD: /opt/breakroom-grok/scripts/mill-reboot.sh
+ALL ALL=(root) NOPASSWD: /workspace/scripts/mill-set-clock.sh
+ALL ALL=(root) NOPASSWD: /workspace/scripts/mill-reboot.sh
+ALL ALL=(root) NOPASSWD: /sbin/reboot
+ALL ALL=(root) NOPASSWD: /usr/sbin/reboot

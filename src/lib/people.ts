@@ -1,32 +1,7 @@
 import type { PersonEntry, PersonKind } from "@/lib/types";
 
-export const PERSON_KINDS: Array<{ id: PersonKind; label: string }> = [
-  { id: "birthday", label: "Birthday" },
-  { id: "anniversary", label: "Anniversary" },
-  { id: "shoutout", label: "Shout-out" },
-];
-
-export function normalizePerson(raw: Partial<PersonEntry> & { kind?: string }): PersonEntry {
-  const kind: PersonKind =
-    raw.kind === "birthday" || raw.kind === "anniversary" || raw.kind === "shoutout"
-      ? raw.kind
-      : "shoutout";
-  const yearly = kind === "birthday" || kind === "anniversary" || raw.yearly === true;
-  return {
-    id: raw.id || `p_${Math.random().toString(36).slice(2, 9)}`,
-    kind,
-    name: String(raw.name ?? "").trim(),
-    date: String(raw.date ?? "").slice(0, 10),
-    endDate: String(raw.endDate ?? "").slice(0, 10),
-    message: String(raw.message ?? ""),
-    photo: String(raw.photo ?? ""),
-    yearly,
-    enabled: raw.enabled !== false,
-  };
-}
-
 function parts(iso: string) {
-  const [year, month, day] = iso.split("-").map(Number);
+  const [year, month, day] = String(iso || "").split("-").map(Number);
   return { year: year || 0, month: month || 0, day: day || 0 };
 }
 
@@ -34,72 +9,7 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
-function occursOn(month: number, day: number, year: number) {
-  if (month === 2 && day === 29) {
-    const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-    return leap ? { month: 2, day: 29 } : { month: 2, day: 28 };
-  }
-  return { month, day };
-}
-
-function daysFromEvent(today: Date, month: number, day: number) {
-  const occ = occursOn(month, day, today.getFullYear());
-  const event = startOfDay(new Date(today.getFullYear(), occ.month - 1, occ.day));
-  return Math.round((startOfDay(today) - event) / 86_400_000);
-}
-
-export function yearsOfService(hireDate: string, today = new Date()) {
-  const hire = parts(hireDate);
-  if (!hire.year || !hire.month || !hire.day) return 0;
-  let years = today.getFullYear() - hire.year;
-  const passed =
-    today.getMonth() + 1 > hire.month ||
-    (today.getMonth() + 1 === hire.month && today.getDate() >= hire.day);
-  if (!passed) years -= 1;
-  return Math.max(0, years);
-}
-
-function mdStamp(month: number, day: number) {
-  return month * 100 + day;
-}
-
-function inYearlyRange(today: Date, startIso: string, endIso: string) {
-  const start = parts(startIso);
-  const finish = parts(endIso || startIso);
-  if (!start.month || !start.day) return false;
-  const t = mdStamp(today.getMonth() + 1, today.getDate());
-  const a = mdStamp(start.month, start.day);
-  const b = mdStamp(finish.month, finish.day);
-  if (a <= b) return t >= a && t <= b;
-  return t >= a || t <= b;
-}
-
-export function isPersonLive(person: PersonEntry, today = new Date()) {
-  if (!person.enabled || !person.name) return false;
-  const yearly = person.yearly || person.kind === "birthday" || person.kind === "anniversary";
-  if (person.kind === "birthday" || person.kind === "anniversary" || (person.kind === "shoutout" && yearly && !person.endDate)) {
-    const when = parts(person.date);
-    if (!when.month || !when.day) return false;
-    if (person.kind === "anniversary" && yearsOfService(person.date, today) < 1) return false;
-    const delta = daysFromEvent(today, when.month, when.day);
-    return delta >= -1 && delta <= 1;
-  }
-  if (person.kind === "shoutout" && yearly && person.endDate) {
-    return inYearlyRange(today, person.date, person.endDate);
-  }
-  const iso = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0"),
-  ].join("-");
-  const start = person.date || iso;
-  const end = person.endDate || addDays(start, 7);
-  return iso >= start && iso <= end;
-}
-
-function addDays(iso: string, count: number) {
-  const when = parts(iso);
-  const date = new Date(when.year, when.month - 1, when.day + count);
+function isoDay(date: Date) {
   return [
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, "0"),
@@ -107,90 +17,111 @@ function addDays(iso: string, count: number) {
   ].join("-");
 }
 
+function kindOf(value: string | undefined): PersonKind {
+  if (value === "anniversary") return "anniversary";
+  if (value === "recognition" || value === "shoutout" || value === "shout-out") return "recognition";
+  return "birthday";
+}
+
+export function normalizePerson(person: Partial<PersonEntry> & { id?: string }): PersonEntry {
+  const kind = kindOf(person.kind);
+  const yearly = person.yearly ?? (kind === "birthday" || kind === "anniversary");
+  return {
+    id: person.id || `p_${Math.random().toString(36).slice(2, 9)}`,
+    kind,
+    name: String(person.name || "").trim(),
+    date: String(person.date || ""),
+    endDate: String(person.endDate || ""),
+    message: String(person.message || ""),
+    enabled: person.enabled !== false,
+    yearly,
+    photo: person.photo || "",
+  };
+}
+
+export function personKicker(kind: PersonKind) {
+  if (kind === "birthday") return "Happy birthday";
+  if (kind === "anniversary") return "Work anniversary";
+  return "Shout-out";
+}
+
+function daysUntilYearly(iso: string, today: Date) {
+  const when = parts(iso);
+  if (!when.month || !when.day) return 999;
+  let event = new Date(today.getFullYear(), when.month - 1, when.day);
+  if (startOfDay(event) < startOfDay(today)) event = new Date(today.getFullYear() + 1, when.month - 1, when.day);
+  return Math.round((startOfDay(event) - startOfDay(today)) / 86_400_000);
+}
+
+export function isPersonLive(person: PersonEntry, today = new Date()) {
+  if (!person.enabled || !person.name || !person.date) return false;
+  const yearly = person.yearly ?? (person.kind === "birthday" || person.kind === "anniversary");
+  if (yearly && (person.kind === "birthday" || person.kind === "anniversary")) {
+    return daysUntilYearly(person.date, today) === 0;
+  }
+  const iso = isoDay(today);
+  const start = person.date;
+  const end = person.endDate || person.date;
+  return iso >= start && iso <= end;
+}
+
 export function livePeople(people: PersonEntry[], today = new Date()) {
-  return people.filter((person) => isPersonLive(person, today));
+  return people.filter((person) => isPersonLive(normalizePerson(person), today));
+}
+
+export function upcomingPeople(people: PersonEntry[], today = new Date(), withinDays = 21) {
+  return people
+    .map(normalizePerson)
+    .filter((person) => person.enabled && person.name && person.date && (person.kind === "birthday" || person.kind === "anniversary"))
+    .map((person) => {
+      const days = daysUntilYearly(person.date, today);
+      const when = parts(person.date);
+      const event = new Date(today.getFullYear(), when.month - 1, when.day);
+      const shown = startOfDay(event) < startOfDay(today) ? new Date(today.getFullYear() + 1, when.month - 1, when.day) : event;
+      return {
+        person,
+        days,
+        whenLabel: shown.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      };
+    })
+    .filter((row) => row.days >= 0 && row.days <= withinDays)
+    .sort((a, b) => a.days - b.days || a.person.name.localeCompare(b.person.name));
 }
 
 export function expiredShoutouts(people: PersonEntry[], today = new Date()) {
-  const iso = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0"),
-  ].join("-");
+  const iso = isoDay(today);
   return people.filter((person) => {
-    if (person.kind !== "shoutout" || person.yearly) return false;
-    const end = person.endDate || addDays(person.date || iso, 7);
+    const item = normalizePerson(person);
+    if (item.kind !== "recognition" || item.yearly) return false;
+    const end = item.endDate || item.date;
     return Boolean(end) && end < iso;
   });
 }
 
-export function personKindLabel(kind: PersonKind) {
-  if (kind === "birthday") return "Birthday";
-  if (kind === "anniversary") return "Anniversary";
-  return "Shout-out";
-}
-
-export function personKicker(person: PersonEntry) {
-  if (person.kind === "birthday") return "Happy birthday";
-  if (person.kind === "anniversary") {
-    const years = yearsOfService(person.date);
-    return years ? `Work anniversary · ${years} year${years === 1 ? "" : "s"}` : "Work anniversary";
-  }
-  return "Mill shout-out";
-}
-
-export function personDefaultMessage(person: PersonEntry) {
-  if (person.kind === "birthday") return "Wishing you a great birthday from the North Baltimore mill.";
-  if (person.kind === "anniversary") {
-    const years = yearsOfService(person.date);
-    return years
-      ? `Thank you for ${years} year${years === 1 ? "" : "s"} at North Baltimore.`
-      : "Thank you for your years at North Baltimore.";
-  }
-  return "Thank you for your hard work.";
-}
-
-export function personWhenLabel(person: PersonEntry, today = new Date()) {
-  if (!person.date) return "No date";
-  const when = parts(person.date);
-  const pretty = new Date(2000, when.month - 1, when.day).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
+export function compressPersonPhoto(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 720;
+      const scale = Math.min(1, max / Math.max(img.width || 1, img.height || 1));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error("Could not draw photo."));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read that photo."));
+    };
+    img.src = url;
   });
-  if (person.kind === "birthday") return `Every ${pretty}`;
-  if (person.kind === "anniversary") {
-    const years = yearsOfService(person.date, today);
-    return `${pretty} · hired ${when.year}${years ? ` · ${years} yrs` : ""}`;
-  }
-  if (person.yearly) {
-    const end = person.endDate ? parts(person.endDate) : null;
-    const endPretty = end
-      ? new Date(2000, end.month - 1, end.day).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-      : "";
-    return endPretty ? `Every year ${pretty} – ${endPretty}` : `Every year on ${pretty}`;
-  }
-  const end = person.endDate ? ` – ${person.endDate}` : " · 7 days";
-  return `${person.date}${end}`;
-}
-
-export function personStatus(person: PersonEntry, today = new Date()) {
-  if (!person.enabled) return "Off";
-  if (isPersonLive(person, today)) return "On TV today";
-  return "Saved";
-}
-
-export async function compressPersonPhoto(file: File) {
-  const bitmap = await createImageBitmap(file);
-  const max = 720;
-  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-  const width = Math.max(1, Math.round(bitmap.width * scale));
-  const height = Math.max(1, Math.round(bitmap.height * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not read that photo.");
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
-  return canvas.toDataURL("image/jpeg", 0.82);
 }

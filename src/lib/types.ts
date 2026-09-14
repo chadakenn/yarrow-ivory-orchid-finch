@@ -66,7 +66,7 @@ export type CaptureTransfer = {
   fromName: string;
 };
 
-export type PersonKind = "birthday" | "anniversary" | "shoutout";
+export type PersonKind = "birthday" | "anniversary" | "recognition";
 
 export type PersonEntry = {
   id: string;
@@ -75,9 +75,9 @@ export type PersonEntry = {
   date: string;
   endDate: string;
   message: string;
-  photo: string;
-  yearly: boolean;
   enabled: boolean;
+  yearly?: boolean;
+  photo?: string;
 };
 
 export type PlantBoard = {
@@ -103,6 +103,7 @@ export type Announcement = {
 
 export type TickerState = {
   enabled: boolean;
+  auto: boolean;
   message: string;
   speed: "slow" | "normal" | "fast";
 };
@@ -114,12 +115,10 @@ export type DisplaySettings = {
   conquestEnabled: boolean;
   conquestMode: "weekly" | "season" | "both";
   productionEnabled: boolean;
-  championshipEnabled: boolean;
-  ytdEnabled: boolean;
-  trendsEnabled: boolean;
   recordsEnabled: boolean;
   peopleEnabled: boolean;
   decksEnabled: boolean;
+  reloadAt: number | null;
   durations: {
     productionWeekly: number;
     productionYtd: number;
@@ -130,7 +129,6 @@ export type DisplaySettings = {
     conquest: number;
     presentation: number;
   };
-  reloadAt?: number;
 };
 
 export type ProductionState = {
