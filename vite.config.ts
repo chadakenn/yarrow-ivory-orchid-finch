@@ -38,16 +38,17 @@ function pgliteBootstrapPlugin(): Plugin {
     apply: "serve",
     async configureServer(server) {
       if (!hasGlobbedMigrations(server.config.root)) return;
-      try {
-        const mod = (await server.ssrLoadModule("/src/lib/db.ts")) as {
-          ensureDbReady?: () => Promise<void>;
-        };
-        if (typeof mod.ensureDbReady === "function") {
-          await mod.ensureDbReady();
-        }
-      } catch (err) {
-        console.error("[app-builder] DB bootstrap failed:", err);
-      }
+      // Do not await SSR module load here. Vite's dep optimizer and the
+      // module runner share a lock; waiting on db.ts blanks the TV.
+      void Promise.race([
+        server.ssrLoadModule("/src/lib/db.ts").then(async (mod) => {
+          const ensure = (mod as { ensureDbReady?: () => Promise<void> }).ensureDbReady;
+          if (typeof ensure === "function") await ensure();
+        }),
+        new Promise((resolve) => setTimeout(resolve, 4000)),
+      ]).catch((err) => {
+        console.error("[app-builder] DB bootstrap skipped:", err);
+      });
     },
   };
 }
@@ -152,25 +153,9 @@ export default defineConfig(({ command, isPreview }) => ({
     port: 8080,
     strictPort: true,
     hmr: { overlay: false },
-    warmup: {
-      clientFiles: [
-        "./src/routes/index.tsx",
-        "./src/routes/control.tsx",
-        "./src/components/display/TvDisplay.tsx",
-        "./src/components/control/ControlRoom.tsx",
-      ],
-    },
   },
   optimizeDeps: {
-    include: [
-      "react",
-      "react-dom",
-      "react/jsx-runtime",
-      "@tanstack/react-router",
-      "zustand",
-      "sonner",
-      "lucide-react",
-    ],
+    include: ["react", "react-dom", "react/jsx-runtime", "zustand", "sonner", "lucide-react"],
   },
   preview: {
     host: "127.0.0.1",

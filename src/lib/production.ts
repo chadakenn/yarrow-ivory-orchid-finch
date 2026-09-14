@@ -705,39 +705,3 @@ export function editHistoryWeek(state: ProductionState, id: string, plants: Plan
     history: state.history.map((week) => (week.id === id ? { ...week, plants: plants.map((plant) => ({ ...plant })), winners } : week)),
   };
 }
-
-export function addHistoryWeek(state: ProductionState, weekEnding: string, plants: PlantTons[]): ProductionState {
-  const date = parseISO(weekEnding);
-  if (
-    Number.isNaN(date.getTime()) ||
-    format(date, "yyyy-MM-dd") !== weekEnding ||
-    date.getDay() !== 6 ||
-    weekEnding >= state.weekEnding ||
-    state.history.some((week) => week.weekEnding === weekEnding)
-  ) {
-    return state;
-  }
-
-  const nextPlants = PLANT_NAMES.map((name) => ({
-    name,
-    tons: Math.max(0, plants.find((plant) => plant.name === name)?.tons ?? 0),
-  }));
-  if (nextPlants.some((plant) => !Number.isFinite(plant.tons)) || nextPlants.every((plant) => plant.tons === 0)) {
-    return state;
-  }
-
-  const ranked = rankedProduction(nextPlants);
-  const leaderTons = ranked[0]?.tons ?? 0;
-  const entry: HistoryWeek = {
-    id: `week_${weekEnding}`,
-    weekEnding,
-    plants: nextPlants,
-    winners: ranked.filter((row) => row.tons === leaderTons).map((row) => row.name),
-  };
-
-  return {
-    ...state,
-    lastUpdated: Date.now(),
-    history: [entry, ...state.history].sort((a, b) => b.weekEnding.localeCompare(a.weekEnding)),
-  };
-}

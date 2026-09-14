@@ -427,6 +427,97 @@ def health_ok(url: str = "http://127.0.0.1:8080/") -> bool:
     return False
 
 
+def install_appliance(dest: Path) -> dict:
+    """Point the Pi at this mill TV. Does not touch tons, slides, or people."""
+    dest = dest.resolve()
+    notes = []
+    service_src = dest / "scripts" / "mill-display.service"
+    if service_src.is_file() and Path("/etc/systemd/system").is_dir():
+        shutil.copy2(service_src, "/etc/systemd/system/mill-display.service")
+        subprocess.run(["systemctl", "daemon-reload"], check=False, capture_output=True, timeout=20)
+        for old in ("breakroom", "breakroom-display", "mill-tv", "mill-flask"):
+            subprocess.run(["systemctl", "stop", old], check=False, capture_output=True, timeout=20)
+            subprocess.run(["systemctl", "disable", old], check=False, capture_output=True, timeout=20)
+        subprocess.run(["systemctl", "enable", "mill-display.service"], check=False, capture_output=True, timeout=20)
+        subprocess.run(["systemctl", "restart", "mill-display.service"], check=False, capture_output=True, timeout=40)
+        notes.append("mill-display service restarted")
+    sudoers = dest / "scripts" / "mill-clock.sudoers"
+    if sudoers.is_file() and Path("/etc/sudoers.d").is_dir():
+        shutil.copy2(sudoers, "/etc/sudoers.d/mill-clock")
+        os.chmod("/etc/sudoers.d/mill-clock", 0o440)
+        notes.append("clock and reboot helpers installed")
+    watch_src = dest / "scripts" / "mill-watchdog.py"
+    watch_dir = Path("/opt/breakroom-watchdog")
+    if watch_src.is_file():
+        watch_dir.mkdir(parents=True, exist_ok=True)
+        target = watch_dir / "mill-watchdog.py"
+        if not target.exists():
+            shutil.copy2(watch_src, target)
+        unit = dest / "scripts" / "mill-watchdog.service"
+        if unit.is_file() and Path("/etc/systemd/system").is_dir():
+            shutil.copy2(unit, "/etc/systemd/system/mill-watchdog.service")
+            subprocess.run(["systemctl", "daemon-reload"], check=False, capture_output=True, timeout=20)
+            subprocess.run(["systemctl", "enable", "--now", "mill-watchdog.service"], check=False, capture_output=True, timeout=20)
+            notes.append("watchdog on")
+    nginx_src = dest / "scripts" / "mill-nginx.conf"
+    nginx_dir = Path("/etc/nginx/sites-available")
+    if nginx_src.is_file() and nginx_dir.is_dir():
+        shutil.copy2(nginx_src, nginx_dir / "mill-display")
+        enabled = Path("/etc/nginx/sites-enabled/mill-display")
+        if not enabled.exists() and not enabled.is_symlink():
+            try:
+                enabled.symlink_to(nginx_dir / "mill-display")
+            except OSError:
+                shutil.copy2(nginx_src, enabled)
+        subprocess.run(["nginx", "-t"], check=False, capture_output=True, timeout=15)
+        subprocess.run(["systemctl", "reload", "nginx"], check=False, capture_output=True, timeout=20)
+        notes.append("display.local pointed at this mill")
+    workspace = Path("/workspace")
+    if not workspace.exists():
+        try:
+            workspace.symlink_to(dest)
+            notes.append("linked mill folder")
+        except OSError:
+            pass
+    return {"ok": True, "notes": notes, "dest": str(dest)}
+
+
+def reinstall(zip_path: str | None = None) -> dict:
+    dest = Path(os.environ.get("MILL_APP") or "/opt/breakroom-grok").expanduser().resolve()
+    os.environ["MILL_APP"] = str(dest)
+    os.environ.setdefault("MILL_DATA", "/opt/breakroom-data")
+    dest.mkdir(parents=True, exist_ok=True)
+    Path(os.environ["MILL_DATA"]).mkdir(parents=True, exist_ok=True)
+    if zip_path:
+        result = apply(zip_path, str(dest))
+        if not result.get("ok"):
+            return result
+    else:
+        src = Path(__file__).resolve().parent.parent
+        if not (src / "package.json").is_file():
+            return {
+                "ok": False,
+                "message": "Unzip the mill zip first, then run mill-reinstall.sh from inside that folder.",
+            }
+        write_status({"phase": "swap", "message": "Putting the mill TV back on this Pi…"})
+        needs_deps = (not (dest / "node_modules").exists()) or lock_changed(src, dest)
+        copied = copy_tree_files(src, dest)
+        if needs_deps:
+            write_status({"phase": "deps", "message": "Installing mill packages. This can take a few minutes…"})
+            npm(["ci", "--no-audit", "--no-fund"], dest, timeout=420)
+        result = {
+            "ok": True,
+            "copied": copied,
+            "dest": str(dest),
+            "data": str(data_root()),
+            "message": f"Installed {copied} files. Mill data stayed in {data_root()}.",
+        }
+    appliance = install_appliance(dest)
+    result["appliance"] = appliance
+    write_status({"phase": "health", "message": "Mill TV is restarting. Give it two minutes."})
+    return result
+
+
 def finish_health() -> dict:
     data = ensure_data_layout()
     pending_path = data / "updates" / "pending-health.json"
@@ -537,6 +628,10 @@ def main(argv: list[str]) -> int:
         if cmd == "apply":
             print(json.dumps(apply(argv[2], argv[3] if len(argv) > 3 else None)))
             return 0
+        if cmd == "reinstall":
+            zip_path = argv[2] if len(argv) > 2 else None
+            print(json.dumps(reinstall(zip_path)))
+            return 0
         if cmd == "rollback":
             print(json.dumps(rollback(argv[2] if len(argv) > 2 else None)))
             return 0
@@ -569,7 +664,7 @@ def main(argv: list[str]) -> int:
         write_status({"phase": "error", "message": str(err)})
         print(json.dumps({"ok": False, "message": str(err)}))
         return 1
-    print("usage: mill-workspace.py pack|install|apply|rollback|status|health|clean-temp", file=sys.stderr)
+    print("usage: mill-workspace.py pack|install|apply|reinstall|rollback|status|health|clean-temp", file=sys.stderr)
     return 1
 
 
