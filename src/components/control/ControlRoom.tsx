@@ -393,8 +393,100 @@ function ProductionPanel() {
         </p>
         <p className="lede">Live order: {ranked.map((row) => `${row.rank}. ${row.name} ${formatTons(row.tons)}`).join(" · ")}</p>
       </div>
+      <MissedWeekForm />
       <HistoryCorrection />
     </section>
+  );
+}
+
+function MissedWeekForm() {
+  const production = useDisplayStore((s) => s.production);
+  const addHistoryWeek = useDisplayStore((s) => s.addHistoryWeek);
+  const [open, setOpen] = useState(false);
+  const [weekEnding, setWeekEnding] = useState("");
+  const [draft, setDraft] = useState<Record<PlantName, string>>(emptyDraft());
+  const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
+  const missing = useMemo(() => {
+    const recorded = new Set(production.history.map((week) => week.weekEnding));
+    const first = [...recorded, production.weekEnding].sort()[0];
+    if (!first) return [];
+    const weeks: string[] = [];
+    const day = new Date(`${first}T12:00:00`);
+    const end = new Date(`${production.weekEnding}T12:00:00`);
+    day.setDate(day.getDate() + 7);
+    for (; day < end; day.setDate(day.getDate() + 7)) {
+      const iso = [day.getFullYear(), String(day.getMonth() + 1).padStart(2, "0"), String(day.getDate()).padStart(2, "0")].join("-");
+      if (!recorded.has(iso)) weeks.push(iso);
+    }
+    return weeks.sort((a, b) => b.localeCompare(a));
+  }, [production.history, production.weekEnding]);
+
+  const save = () => {
+    if (!missing.includes(weekEnding)) {
+      toast.error("Choose a missed Saturday.");
+      return;
+    }
+    if (PLANT_NAMES.some((name) => draft[name].trim() !== "" && (!Number.isFinite(Number(draft[name])) || Number(draft[name]) < 0))) {
+      toast.error("Enter valid, nonnegative tons for each plant.");
+      return;
+    }
+    const plants = plantsFromDraft(draft);
+    if (plants.every((plant) => plant.tons === 0)) {
+      toast.error("Enter tons before saving the missed week.");
+      return;
+    }
+    setConfirm({
+      title: `Add Saturday ${formatWeekEnding(weekEnding)}?`,
+      body: "This missed week is inserted into mill history. Map, YTD, trends, and records rebuild.",
+      items: plants.map((plant) => `${plant.name} · ${plant.tons.toLocaleString()} tons`),
+      confirmLabel: "Add missed Saturday",
+      onConfirm: () => {
+        if (!addHistoryWeek(weekEnding, plants)) {
+          setConfirm(null);
+          toast.error("That Saturday could not be added.");
+          return;
+        }
+        const savedWeek = weekEnding;
+        setWeekEnding("");
+        setDraft(emptyDraft());
+        setConfirm(null);
+        void flushKioskNow();
+        void millEvent("week-added", `${formatWeekEnding(savedWeek)} · ${plants.map((plant) => `${plant.name} ${plant.tons}`).join(", ")}`);
+        toast.success("Missed Saturday added. Chart and records updated.");
+      },
+    });
+  };
+
+  return (
+    <div className="panel tons-panel">
+      <button type="button" className="correction-toggle" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+        <span>
+          <strong>Catch up a missed Saturday</strong>
+          <em>Add a week that was never entered. Chart, YTD, map, and records update automatically.</em>
+        </span>
+        <b>{open ? "Hide" : "Open"}</b>
+      </button>
+      {open ? (
+        <>
+          {missing.length ? (
+            <select className="select" value={weekEnding} onChange={(event) => setWeekEnding(event.target.value)} aria-label="Missed Saturday">
+              <option value="">Choose a missed week</option>
+              {missing.map((week) => <option key={week} value={week}>{formatWeekEnding(week)}</option>)}
+            </select>
+          ) : <p className="lede">No Saturdays are missing between your first recorded week and the current week.</p>}
+          <div className="ton-grid">
+            {PLANT_NAMES.map((name) => (
+              <label key={name} className={cn("ton-card", name === "North Baltimore" && "ours")}>
+                <div className="ton-head"><span className="swatch" style={{ background: MILL_HEX[name].stroke }} /><span>{name}</span></div>
+                <Input className="ton-input" inputMode="decimal" placeholder="0" value={draft[name]} onChange={(event) => setDraft((prev) => ({ ...prev, [name]: event.target.value }))} />
+              </label>
+            ))}
+          </div>
+          <Button disabled={!weekEnding} onClick={save}><Save size={16} />Save missed week</Button>
+          {confirm ? <ConfirmBox spec={confirm} onCancel={() => setConfirm(null)} /> : null}
+        </>
+      ) : null}
+    </div>
   );
 }
 

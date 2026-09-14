@@ -69,6 +69,7 @@
 }
 
 .tv-shell {
+  cursor:none;
   background:#05070a;
   place-items:center;
   min-height:100dvh;
@@ -78,6 +79,7 @@
   box-sizing:border-box;
   padding: clamp(8px, 1.2vh, 18px) clamp(8px, 1vw, 16px);
 }
+.tv-shell * { cursor:none !important; }
 .tv-stage {
   width:100%;
   height:100%;
@@ -2595,6 +2597,5 @@
   font-style: normal;
   font-size: 13px;
 }
-
 
 
