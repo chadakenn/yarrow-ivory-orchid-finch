@@ -719,3 +719,18 @@ export function editHistoryWeek(
   };
 }
 
+export function addHistoryWeek(state: ProductionState, weekEnding: string, plants: PlantTons[]): ProductionState {
+  const date = new Date(`${weekEnding}T12:00:00`);
+  if (Number.isNaN(date.getTime()) || format(date, "yyyy-MM-dd") !== weekEnding || date.getDay() !== 6 ||
+      weekEnding >= state.weekEnding || state.history.some((entry) => entry.weekEnding === weekEnding)) return state;
+  const nextPlants = PLANT_NAMES.map((name) => ({ name, tons: Math.max(0, plants.find((p) => p.name === name)?.tons ?? 0) }));
+  const leader = Math.max(...nextPlants.map((p) => p.tons));
+  if (leader <= 0 || nextPlants.some((p) => !Number.isFinite(p.tons))) return state;
+  const entry: HistoryWeek = {
+    id: `week_${weekEnding}`,
+    weekEnding,
+    plants: nextPlants,
+    winners: nextPlants.filter((p) => p.tons === leader).map((p) => p.name),
+  };
+  return { ...state, lastUpdated: Date.now(), history: [entry, ...state.history].sort((a, b) => b.weekEnding.localeCompare(a.weekEnding)) };
+}
