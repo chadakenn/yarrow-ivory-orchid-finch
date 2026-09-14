@@ -339,6 +339,7 @@ function ProductionPanel({
         <div className="week-chip">Week ending {formatWeekEnding(production.weekEnding)}</div>
       </header>
       <WeeklyTonsForm />
+      <MissedWeekForm />
       <HistoryCorrection />
       <div className="panel">
         <div className="library-head">
@@ -520,6 +521,58 @@ function WeeklyTonsForm() {
           {confirmReset ? "Tap again to reset" : "Reset this week"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+function MissedWeekForm() {
+  const production = useDisplayStore((s) => s.production);
+  const addHistoryWeek = useDisplayStore((s) => s.addHistoryWeek);
+  const [open, setOpen] = useState(false);
+  const [weekEnding, setWeekEnding] = useState("");
+  const [draft, setDraft] = useState<Record<PlantName, string>>(emptyDraft());
+  const missing: string[] = [];
+  const earliest = [...production.history.map((entry) => entry.weekEnding), production.weekEnding].sort()[0];
+  if (earliest) {
+    const day = new Date(`${earliest}T12:00:00`);
+    day.setDate(day.getDate() + 7);
+    const end = new Date(`${production.weekEnding}T12:00:00`);
+    for (; day < end; day.setDate(day.getDate() + 7)) {
+      const iso = [day.getFullYear(), String(day.getMonth() + 1).padStart(2, "0"), String(day.getDate()).padStart(2, "0")].join("-");
+      if (!production.history.some((entry) => entry.weekEnding === iso)) missing.push(iso);
+    }
+  }
+  missing.sort((a, b) => b.localeCompare(a));
+  return (
+    <div className="panel tons-panel">
+      <button type="button" className="correction-toggle" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+        <span><strong>Catch up a missed Saturday</strong><em>Add a week that was never entered. Its chart, YTD totals, and records update automatically.</em></span>
+        <b>{open ? "Hide" : "Open"}</b>
+      </button>
+      {open ? <>
+        <div className="library-head">
+          <label>Week ending Saturday <select className="select" value={weekEnding} onChange={(event) => setWeekEnding(event.target.value)}>
+            <option value="">Choose a missed week</option>
+            {missing.map((iso) => <option key={iso} value={iso}>{formatWeekEnding(iso)}</option>)}
+          </select></label>
+        </div>
+        {missing.length === 0 ? <p>No missed Saturdays between your first recorded week and the current week.</p> : null}
+        <div className="ton-grid">{PLANT_NAMES.map((name) => <label key={name} className={cn("ton-card", name === "North Baltimore" && "ours")}>
+          <div className="ton-head"><span className="swatch" style={{ background: MILL_HEX[name].stroke }} /><span>{name}</span></div>
+          <Input className="ton-input" inputMode="decimal" placeholder="0" value={draft[name]} onChange={(event) => setDraft((prev) => ({ ...prev, [name]: event.target.value }))} />
+        </label>)}</div>
+        <div className="header-actions"><Button disabled={!weekEnding} onClick={() => {
+          if (!missing.includes(weekEnding)) { toast.error("Choose an unrecorded Saturday."); return; }
+          if (PLANT_NAMES.some((name) => draft[name].trim() !== "" && (!Number.isFinite(Number(draft[name])) || Number(draft[name]) < 0))) {
+            toast.error("Enter valid, nonnegative tons for each plant."); return;
+          }
+          const plants = plantsFromDraft(draft);
+          if (plants.every((plant) => plant.tons === 0)) { toast.error("Enter tons before saving."); return; }
+          if (!addHistoryWeek(weekEnding, plants)) { toast.error("That Saturday could not be added."); return; }
+          setWeekEnding(""); setDraft(emptyDraft());
+          toast.success("Missed Saturday added. Chart and records updated.");
+        }}><Save size={16} /> Save missed week</Button></div>
+      </> : null}
     </div>
   );
 }
