@@ -10,7 +10,7 @@ import type {
   PlantName,
   ProductionState,
 } from "@/lib/types";
-import { closeWeek, editHistoryWeek, formatTons, rankedProduction } from "@/lib/production";
+import { addHistoryWeek, closeWeek, editHistoryWeek, formatTons, rankedProduction } from "@/lib/production";
 import { normalizePerson } from "@/lib/people";
 import { OUR_PLANT, PLANT_NAMES } from "@/lib/types";
 
@@ -26,6 +26,7 @@ type Store = AppState & {
   resetAllProduction: () => void;
   loadSaturdayBook: () => void;
   updateHistoryWeek: (id: string, plants: ProductionState["plants"]) => void;
+  addHistoryWeek: (weekEnding: string, plants: ProductionState["plants"]) => boolean;
   setPlantBoard: (board: PlantBoard) => void;
   setPeople: (people: PersonEntry[]) => void;
   addPerson: (person: Omit<PersonEntry, "id">) => void;
@@ -117,6 +118,13 @@ export const useDisplayStore = create<Store>()(
         set((state) => ({
           production: editHistoryWeek(state.production, id, plants),
         })),
+      addHistoryWeek: (weekEnding, plants) => {
+        const current = get().production;
+        const next = addHistoryWeek(current, weekEnding, plants);
+        if (next === current) return false;
+        set({ production: next });
+        return true;
+      },
       setPlantBoard: (board) => set({ plantBoard: board }),
       setPeople: (people) => set({ people }),
       addPerson: (person) =>

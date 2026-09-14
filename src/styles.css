@@ -71,6 +71,7 @@
 }
 
 .tv-shell {
+  cursor:none;
   position:relative;
   background:#05070a;
   place-items:center;
@@ -78,6 +79,7 @@
   display:grid;
   overflow:hidden
 }
+.tv-shell * { cursor:none !important; }
 .tv-stage {
   width:100vw;
   height:100dvh;
