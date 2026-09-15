@@ -89,23 +89,6 @@ export function buildSlides(state: AppState, decks: Deck[] = []): Slide[] {
   const slides: Slide[] = [];
   const { production, settings, plantBoard, people } = state;
   const d = settings.durations;
-
-  if (settings.decksEnabled !== false) {
-    const hold = Math.max(4, d.presentation ?? 10);
-    for (const deck of decks.filter((item) => item.enabled && item.slides.length)) {
-      deck.slides.forEach((slide, index) => {
-        slides.push({
-          id: `deck-${deck.id}-${index}`,
-          kind: "deck",
-          duration: hold,
-          src: slide.src,
-          title: deck.name,
-          page: index + 1,
-          pages: deck.slides.length,
-        });
-      });
-    }
-  }
   const lastClosed = lastClosedPair(production);
   const weekly = rankedProduction(production.plants, {}, rankChangeTrends(production.plants, lastClosed.current));
   const ytd = ytdProduction(production);
@@ -219,6 +202,23 @@ export function buildSlides(state: AppState, decks: Deck[] = []): Slide[] {
         kind: "person",
         duration: d.people,
         person,
+      });
+    }
+  }
+
+  if (settings.decksEnabled !== false) {
+    const hold = Math.max(4, d.presentation ?? 10);
+    for (const deck of decks.filter((item) => item.enabled && item.slides.length)) {
+      deck.slides.forEach((slide, index) => {
+        slides.push({
+          id: `deck-${deck.id}-${index}`,
+          kind: "deck",
+          duration: hold,
+          src: slide.src,
+          title: deck.name,
+          page: index + 1,
+          pages: deck.slides.length,
+        });
       });
     }
   }
