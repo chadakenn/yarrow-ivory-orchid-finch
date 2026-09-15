@@ -16,4 +16,4 @@ chmod +x "$HERE/scripts/mill-start.sh" "$HERE/scripts/mill-reboot.sh" "$HERE/scr
 python3 "$HERE/scripts/mill-workspace.py" reinstall "${1:-}"
 echo
 echo "Give the TV two minutes. Open display.local on your phone."
-echo "Tons, slides, and people stay. Look for v1.32 in Control Room."
+echo "Tons, slides, and people stay. http://display.local/ is the Breakroom Display."
