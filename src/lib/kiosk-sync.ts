@@ -1,5 +1,6 @@
 import { fetchKiosk, saveKiosk } from "@/lib/kiosk";
 import { loadMillClock } from "@/lib/mill-clock";
+import { rollOpenWeek } from "@/lib/week-roll";
 import { useDisplayStore } from "@/lib/store";
 import { useEffect, useState } from "react";
 
@@ -47,7 +48,7 @@ function applyRemote(remote: {
   version = remote.updatedAt;
   revision = Number(remote.revision) || revision;
   useDisplayStore.setState({
-    production: remote.production,
+    production: rollOpenWeek(remote.production),
     plantBoard: remote.plantBoard,
     settings: remote.settings,
     announcement: remote.announcement,
@@ -122,7 +123,6 @@ export async function hydrateKiosk() {
   } catch {
     ready = true;
     setStatus("error");
-    queuePush();
   }
 }
 
