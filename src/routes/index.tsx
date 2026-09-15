@@ -1,8 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { TvDisplay } from "@/components/display/TvDisplay";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/")({ ssr: false, component: Home });
-
-function Home() {
-  return <TvDisplay />;
-}
+export const Route = createFileRoute("/")({
+  beforeLoad: () => {
+    throw redirect({ to: "/office" });
+  },
+});

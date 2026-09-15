@@ -124,7 +124,7 @@ export function ControlRoom({ room }: { room?: string }) {
             </button>
           ))}
         </nav>
-        <Link to="/" className="control-tv-btn">
+        <Link to="/display" className="control-tv-btn">
           {phone ? "TV" : "Open TV display"}
         </Link>
       </aside>
