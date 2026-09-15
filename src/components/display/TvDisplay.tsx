@@ -71,7 +71,6 @@ export function TvDisplay() {
   const people = useDisplayStore((s) => s.people);
   const announcement = useDisplayStore((s) => s.announcement);
   const settings = useDisplayStore((s) => s.settings);
-  const clearAnnouncement = useDisplayStore((s) => s.clearAnnouncement);
   const { decks } = useMediaLibrary();
 
   const slides = useMemo(
@@ -79,11 +78,15 @@ export function TvDisplay() {
     [production, plantBoard, people, announcement, settings, decks],
   );
 
-  const [index, setIndex] = useState(0);
+  const [currentId, setCurrentId] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [chrome, setChrome] = useState(true);
   const hideTimer = useRef<number | null>(null);
   const boot = useRef(Date.now());
+  const slidesRef = useRef(slides);
+  const currentIdRef = useRef(currentId);
+  slidesRef.current = slides;
+  currentIdRef.current = currentId;
 
   useEffect(() => {
     void loadMillClock();
@@ -96,35 +99,36 @@ export function TvDisplay() {
   }, [settings.reloadAt]);
 
   useEffect(() => {
-    if (index >= slides.length) setIndex(0);
-  }, [index, slides.length]);
+    if (!slides.length) return;
+    if (!currentId || !slides.some((item) => item.id === currentId)) {
+      setCurrentId(slides[0].id);
+    }
+  }, [slides, currentId]);
 
+  const index = Math.max(0, slides.findIndex((item) => item.id === currentId));
   const slide = slides[index] ?? slides[0];
   const liveAnnouncement = announcement && announcement.expiresAt > millNow().getTime() ? announcement : null;
   const slideId = slide?.id ?? "";
   const holdMs = Math.max(2, Number(slide?.duration) || 8) * 1000;
-  const countRef = useRef(slides.length);
-  countRef.current = slides.length;
 
-  useEffect(() => {
-    if (!liveAnnouncement && announcement) clearAnnouncement();
-  }, [liveAnnouncement, announcement, clearAnnouncement]);
+  const step = (dir: 1 | -1) => {
+    const list = slidesRef.current;
+    if (!list.length) return;
+    const here = Math.max(0, list.findIndex((item) => item.id === (currentIdRef.current ?? list[0].id)));
+    const next = list[(here + dir + list.length) % list.length];
+    if (next) setCurrentId(next.id);
+  };
 
   useEffect(() => {
     if (paused || liveAnnouncement || !slideId) return;
-    const id = window.setTimeout(() => {
-      setIndex((current) => {
-        const n = countRef.current;
-        return n ? (current + 1) % n : 0;
-      });
-    }, holdMs);
+    const id = window.setTimeout(() => step(1), holdMs);
     return () => window.clearTimeout(id);
   }, [slideId, holdMs, paused, liveAnnouncement]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "ArrowRight") setIndex((i) => (slides.length ? (i + 1) % slides.length : 0));
-      if (event.key === "ArrowLeft") setIndex((i) => (slides.length ? (i - 1 + slides.length) % slides.length : 0));
+      if (event.key === "ArrowRight") step(1);
+      if (event.key === "ArrowLeft") step(-1);
       if (event.key === " ") {
         event.preventDefault();
         setPaused((value) => !value);
@@ -219,13 +223,13 @@ export function TvDisplay() {
             Control room
           </Link>
           <div className="tv-transport">
-            <button type="button" onClick={() => setIndex((i) => (slides.length ? (i - 1 + slides.length) % slides.length : 0))} aria-label="Previous slide">
+            <button type="button" onClick={() => step(-1)} aria-label="Previous slide">
               <SkipBack size={16} />
             </button>
             <button type="button" onClick={() => setPaused((v) => !v)} aria-label={paused ? "Play" : "Pause"}>
               {paused ? <Play size={16} /> : <Pause size={16} />}
             </button>
-            <button type="button" onClick={() => setIndex((i) => (slides.length ? (i + 1) % slides.length : 0))} aria-label="Next slide">
+            <button type="button" onClick={() => step(1)} aria-label="Next slide">
               <SkipForward size={16} />
             </button>
             <div className="tv-dots">
@@ -234,7 +238,7 @@ export function TvDisplay() {
                   key={item.id}
                   type="button"
                   className={cn("tv-dot", i === index ? "active" : "")}
-                  onClick={() => setIndex(i)}
+                  onClick={() => setCurrentId(item.id)}
                   aria-label={`Show ${item.id}`}
                 />
               ))}
