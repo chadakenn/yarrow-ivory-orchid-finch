@@ -113,7 +113,7 @@ export function buildSlides(state: AppState, decks: Deck[] = []): Slide[] {
   const records = productionRecords(production);
   const graph = weeklyGraph(production);
 
-  if (settings.productionEnabled && production.plants.some((plant) => plant.tons > 0)) {
+  if (settings.productionEnabled !== false && production.plants.some((plant) => plant.tons > 0)) {
     slides.push({
       id: "prod-weekly",
       kind: "production",
