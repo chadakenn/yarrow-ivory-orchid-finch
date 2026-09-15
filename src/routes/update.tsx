@@ -49,7 +49,7 @@ function UpdateTv() {
       setSettings({ reloadAt: at });
       setNote(`Installed ${result.files} files. The TV will refresh.`);
       window.setTimeout(() => {
-        void applyAppUpdate("/");
+        void applyAppUpdate("/display");
       }, 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not install that zip.");
@@ -60,7 +60,7 @@ function UpdateTv() {
   const runWeb = async () => {
     if (busy !== "off") return;
     setBusy("web");
-    await applyAppUpdate("/");
+    await applyAppUpdate("/display");
   };
 
   return (
@@ -143,7 +143,7 @@ function UpdateTv() {
           <RefreshCw size={16} />
           Refresh this TV
         </button>
-        <Link to="/" className="tv-update-back">
+        <Link to="/office" className="tv-update-back">
           Back to the TV playlist
         </Link>
       </div>
