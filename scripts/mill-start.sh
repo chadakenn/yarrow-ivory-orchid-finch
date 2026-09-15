@@ -10,7 +10,10 @@ if [ -z "${MILL_DATA:-}" ]; then
     export MILL_DATA="$ROOT/data"
   fi
 fi
-chmod +x "$ROOT/scripts/mill-set-clock.sh" "$ROOT/scripts/mill-reboot.sh" "$ROOT/scripts/mill-start.sh" 2>/dev/null || true
+chmod +x "$ROOT/scripts/mill-set-clock.sh" "$ROOT/scripts/mill-reboot.sh" "$ROOT/scripts/mill-start.sh" "$ROOT/scripts/mill-point-display.sh" 2>/dev/null || true
+if [ "$(id -u)" = "0" ]; then
+  bash "$ROOT/scripts/mill-point-display.sh" >/dev/null 2>&1 || true
+fi
 if [ "$(id -u)" = "0" ] && [ -d /etc/sudoers.d ] && [ -f "$ROOT/scripts/mill-clock.sudoers" ]; then
   cp "$ROOT/scripts/mill-clock.sudoers" /etc/sudoers.d/mill-clock
   chmod 440 /etc/sudoers.d/mill-clock
