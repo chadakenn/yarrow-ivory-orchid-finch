@@ -11,6 +11,8 @@ import type {
   ProductionState,
 } from "@/lib/types";
 import { addHistoryWeek, closeWeek, editHistoryWeek } from "@/lib/production";
+import { rollOpenWeek } from "@/lib/week-roll";
+import { millNowMs } from "@/lib/mill-clock";
 import { normalizePerson } from "@/lib/people";
 import { PLANT_NAMES } from "@/lib/types";
 
@@ -35,7 +37,7 @@ type Store = AppState & {
 };
 
 const seed: AppState = {
-  production: DEFAULT_PRODUCTION,
+  production: rollOpenWeek(DEFAULT_PRODUCTION),
   plantBoard: DEFAULT_PLANT_BOARD,
   people: DEFAULT_PEOPLE,
   announcement: null,
@@ -118,15 +120,17 @@ export const useDisplayStore = create<Store>()(
         set((state) => ({
           people: state.people.filter((item) => item.id !== id),
         })),
-      postAnnouncement: (message, type, minutes) =>
-        set({
+      postAnnouncement: (message, type, minutes) => {
+        const now = millNowMs();
+        return set({
           announcement: {
             message: message.trim().slice(0, 500),
             type,
-            createdAt: Date.now(),
-            expiresAt: Date.now() + minutes * 60 * 1000,
+            createdAt: now,
+            expiresAt: now + minutes * 60 * 1000,
           },
-        }),
+        });
+      },
       clearAnnouncement: () => set({ announcement: null }),
       setSettings: (patch) =>
         set((state) => ({
@@ -134,10 +138,10 @@ export const useDisplayStore = create<Store>()(
         })),
       loadSaturdayBook: () =>
         set({
-          production: {
+          production: rollOpenWeek({
             ...DEFAULT_PRODUCTION,
             lastUpdated: Date.now(),
-          },
+          }),
         }),
       resetDemo: () => set({ ...seed, announcement: null }),
     }),
