@@ -224,21 +224,5 @@ export function buildSlides(state: AppState, decks: Deck[] = []): Slide[] {
     }
   }
 
-  if (!uploaded.length) return slides;
-  if (!slides.length) return uploaded;
-
-  const mixed: Slide[] = [];
-  let u = 0;
-  for (const item of slides) {
-    mixed.push(item);
-    if (u < uploaded.length) {
-      mixed.push(uploaded[u]);
-      u += 1;
-    }
-  }
-  while (u < uploaded.length) {
-    mixed.push(uploaded[u]);
-    u += 1;
-  }
-  return mixed;
+  return slides.concat(uploaded);
 }
