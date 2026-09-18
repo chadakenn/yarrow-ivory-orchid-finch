@@ -1,0 +1,79 @@
+/* Big-TV type. Does not touch uploaded PDF/PPT slides. */
+@media (min-width: 1100px) {
+  .tv-shell .ticker-overlay {
+    height: 96px;
+    flex-basis: 96px;
+  }
+  .tv-shell .ticker-track {
+    font-size: 42px;
+    line-height: 96px;
+    letter-spacing: 0.12em;
+    gap: 96px;
+  }
+  .tv-shell .bakery-ticker {
+    height: 96px;
+    padding: 0 22px;
+  }
+  .tv-shell .bakery-ticker img {
+    height: 48px;
+  }
+  .tv-shell .clock-time {
+    font-size: clamp(36px, 3.2vw, 64px);
+  }
+  .tv-shell .clock-date {
+    font-size: 18px;
+    margin-top: 6px;
+  }
+  .tv-shell .clock-overlay {
+    padding: 14px 18px;
+  }
+  .tv-shell .production-title,
+  .tv-shell .records-title,
+  .tv-shell .plant-board-title,
+  .tv-shell .person-name,
+  .tv-shell .announce-message {
+    font-size: clamp(56px, 6vw, 112px);
+  }
+  .tv-shell .conquest-title {
+    font-size: clamp(40px, 4.4vw, 84px);
+  }
+  .tv-shell .production-eyebrow,
+  .tv-shell .records-eyebrow,
+  .tv-shell .plant-board-kicker,
+  .tv-shell .person-kicker,
+  .tv-shell .announce-kicker {
+    font-size: 18px;
+  }
+  .tv-shell .production-sub,
+  .tv-shell .production-gap {
+    font-size: 20px;
+  }
+  .tv-shell .production-unit {
+    font-size: 16px;
+  }
+  .tv-shell .production-row {
+    grid-template-columns: 84px minmax(0, 1fr) 240px;
+    margin-top: 18px;
+    padding: 16px 22px;
+    gap: 20px;
+  }
+  .tv-shell .production-place {
+    font-size: clamp(48px, 4vw, 72px);
+  }
+  .tv-shell .production-name {
+    font-size: clamp(36px, 3.6vw, 68px);
+  }
+  .tv-shell .production-tons {
+    font-size: clamp(44px, 4.4vw, 88px);
+  }
+  .tv-shell .production-bar {
+    height: 12px;
+    margin-top: 10px;
+  }
+  .tv-shell .chart-wrap {
+    height: min(42vh, 420px);
+  }
+  .tv-shell .clock-overlay.bottom-left {
+    bottom: 112px;
+  }
+}

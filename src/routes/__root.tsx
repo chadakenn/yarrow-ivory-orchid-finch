@@ -4,6 +4,7 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { KioskSync } from "@/lib/kiosk-sync";
 import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
+import tvReadCss from "../tv-read.css?url";
 
 const APP_NAME = "Breakroom Display";
 
@@ -22,6 +23,7 @@ export const Route = createRootRoute({
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: tvReadCss },
       { rel: "manifest", href: "/__grok/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
       {
